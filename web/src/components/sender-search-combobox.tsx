@@ -127,7 +127,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
   };
 
   return (
-    <div className="flex items-center gap-2 w-full md:w-auto">
+    <div className="relative flex items-center gap-2 w-full md:w-auto">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button className="text-sm px-4 py-2.5 rounded-md border border-border bg-background text-foreground hover:bg-secondary/50 inline-flex items-center gap-2 cursor-pointer select-none whitespace-nowrap transition-colors">
@@ -143,7 +143,12 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-[300px] md:w-[400px] p-0 bg-card border border-border shadow-lg" align="start">
-          <Command shouldFilter={false} onKeyDown={handleKeyDown} className="bg-card">
+          <Command
+            shouldFilter={false}
+            onKeyDown={handleKeyDown}
+            className="bg-card"
+            style={{ color: "#0f172a" }}
+          >
             <div className="flex items-center gap-2 border-b border-border px-3 py-2 bg-card">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
@@ -151,7 +156,8 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
                 placeholder="Type to search senders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 h-8 bg-transparent text-sm outline-none placeholder:text-muted-foreground text-foreground"
+                className="flex-1 h-8 bg-transparent text-sm font-normal outline-none placeholder:text-muted-foreground text-foreground"
+                style={{ color: "#0f172a", caretColor: "var(--primary)" }}
               />
             </div>
             <CommandList className="bg-card">
@@ -186,6 +192,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
                       value={sender}
                       onSelect={() => toggleSender(sender)}
                       className="cursor-pointer hover:bg-secondary/50 aria-selected:bg-secondary/50 text-foreground"
+                      style={{ color: "#0f172a" }}
                     >
                       <div className="flex items-center gap-2 w-full">
                         <input
@@ -194,7 +201,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
                           onChange={() => {}}
                           className="accent-primary cursor-pointer"
                         />
-                        <span className="flex-1 truncate text-foreground">{sender}</span>
+                        <span className="flex-1 truncate text-foreground" style={{ color: "#0f172a" }}>{sender}</span>
                       </div>
                     </CommandItem>
                   ))}
@@ -228,7 +235,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
 
       {/* Display selected senders as badges */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="absolute left-0 top-full mt-1 flex items-center gap-1.5">
           {Array.from(selected).slice(0, 2).map((sender) => (
             <Badge
               key={sender}
