@@ -127,7 +127,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
   };
 
   return (
-    <div className="flex items-center gap-2 w-full md:w-auto">
+    <div className="relative flex items-center gap-2 w-full md:w-auto">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button className="text-sm px-4 py-2.5 rounded-md border border-border bg-background text-foreground hover:bg-secondary/50 inline-flex items-center gap-2 cursor-pointer select-none whitespace-nowrap transition-colors">
@@ -235,7 +235,7 @@ export function SenderSearchCombobox({ selectedSenders, pageSize, codes, sources
 
       {/* Display selected senders as badges */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="absolute left-0 top-full mt-1 flex items-center gap-1.5">
           {Array.from(selected).slice(0, 2).map((sender) => (
             <Badge
               key={sender}
