@@ -48,7 +48,7 @@ export function Footer({ onScrollToSubmission }: FooterProps) {
               or any PACs.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-8 md:gap-14">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-14">
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-foreground">Platform</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
