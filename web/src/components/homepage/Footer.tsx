@@ -64,7 +64,7 @@ export function Footer({ onScrollToSubmission }: FooterProps) {
                 </li>
                 <li>
                   <Link href="/stats" className="hover:text-foreground transition-colors">
-                    Leaderboard
+                    Statistics
                   </Link>
                 </li>
               </ul>

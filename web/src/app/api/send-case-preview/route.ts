@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     : `<p style="margin:0;color:#64748b">(No violations detected)</p>`;
   const exemptNoticeHtml = removedVerifiedAb008 > 0
     ? `<p style="margin:8px 0 0 0;color:#1e3a8a;font-size:13px;background:#e0e7ff;border:1px solid #c7d2fe;padding:10px;border-radius:8px">
-        We excluded ActBlue-verified matching program items (AB008) for this sender. Those will not be reported.
+        This email shows a donation matching program from a sender that ActBlue has determined is compliant. That detected violation will not be reported if you submit this case to ActBlue. However, it has been logged in our public database for transparency. Please continue to submit similar emails.
       </p>`
     : "";
 
