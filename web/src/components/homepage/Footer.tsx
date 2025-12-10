@@ -89,7 +89,7 @@ export function Footer({ onScrollToSubmission }: FooterProps) {
                 </li>
               </ul>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 pt-8 md:pt-0">
               <h4 className="font-medium text-sm text-foreground">Connect</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
