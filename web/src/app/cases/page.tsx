@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 import { VIOLATION_POLICIES, AUP_HELP_URL } from "@/lib/violation-policies";
 import { isBotSubmitted } from "@/lib/badge-helpers";
 import {

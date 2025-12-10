@@ -3,7 +3,7 @@
 import { FormEvent, memo, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 import {
   HoverCard,
   HoverCardContent,

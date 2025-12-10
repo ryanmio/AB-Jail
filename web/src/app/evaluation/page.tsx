@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/hover-card";
 import { VIOLATION_POLICIES, AUP_HELP_URL } from "@/lib/violation-policies";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 
 const REQUIRED_EVALUATIONS = 20;
 
