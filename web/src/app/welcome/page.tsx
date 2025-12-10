@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Metadata } from "next";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 import { VIOLATION_POLICIES, AUP_HELP_URL } from "@/lib/violation-policies";
 
 export const metadata: Metadata = {

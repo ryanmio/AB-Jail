@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 
 type Metrics = {
   totalEvaluations: number;

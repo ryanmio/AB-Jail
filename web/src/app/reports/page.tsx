@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 import ReportsTable from "./ReportsTable";
 import AboutReportingCard from "./AboutReportingCard";
 

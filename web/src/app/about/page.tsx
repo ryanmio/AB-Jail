@@ -1,5 +1,5 @@
 import { Header } from "@/components/homepage/Header";
-import { Footer } from "@/components/homepage/Footer";
+import { Footer } from "@/components/Footer";
 
 export default function AboutPage() {
   return (
