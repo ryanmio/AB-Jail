@@ -86,7 +86,7 @@ export function Header({ onScrollToSubmission, isHomepage = false }: HeaderProps
                     href="/stats"
                     className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Leaderboard
+                    Statistics
                   </Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -200,7 +200,7 @@ export function Header({ onScrollToSubmission, isHomepage = false }: HeaderProps
                   </div>
                   <div>
                     <Link href="/stats" className="font-medium text-sm text-foreground hover:text-primary transition-colors">
-                      Leaderboard
+                      Statistics
                     </Link>
                   </div>
                   <div className="space-y-3">

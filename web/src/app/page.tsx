@@ -312,7 +312,7 @@ export default function Home() {
                       href="/stats"
                       className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Leaderboard
+                      Statistics
                     </Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
@@ -420,7 +420,7 @@ export default function Home() {
                     </div>
                     <div>
                       <Link href="/stats" className="font-medium text-sm text-foreground hover:text-primary transition-colors">
-                        Leaderboard
+                        Statistics
                       </Link>
                     </div>
                     <div className="space-y-3">
@@ -1251,7 +1251,7 @@ function HomepageFooter({ scrollToSubmission }: { scrollToSubmission: () => void
                 </li>
                 <li>
                   <Link href="/stats" className="hover:text-foreground transition-colors">
-                    Leaderboard
+                    Statistics
                   </Link>
                 </li>
               </ul>
