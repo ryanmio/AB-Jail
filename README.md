@@ -2,13 +2,11 @@
 
 AB Jail is an open-source project that brings transparency to political fundraising through AI-powered analysis and real-time monitoring.
 
-** IMPORTANT: Submissions =/= Reports to ActBlue.** This is primarily a public transparency project tracking potentially deceptive fundraising practices gathered from user and bot submissions of fundraising messages to our site. We hope to allow for users to report potential account use policy violations to ActBlue via our site, but that feature is on hold pending further discussions.
-
-**Submit manually:** Forward emails to submit@abjail.org, paste text directly, or upload screenshots of deceptive messages. AI extracts senders, checks against ActBlue's rules, drafts reports, and adds cases to a public ledger.
-
-**Monitor automatically:** Seeded phone numbers and email addresses continuously collect fundraising solicitations from campaigns, PACs, and list sellers, creating a real-time feed that builds our database.
+**Disclaimer:** This project does not represent the views, opinions, or positions of any contributor's employer. The views and opinions expressed in this project are solely those of the individual contributors and do not necessarily reflect the official policy or position of any organization they may be affiliated with.
 
 ## Contributing
+
+All contributions are welcome! Anyone may edit the code directly to improve the AI classification accuracy, change language, add new features, or fix bugs.
 
 To contribute, fork the repo, make your changes, and submit a PR. Looking for improvements to AI accuracy, new features, or bug fixes.
 
