@@ -205,7 +205,7 @@ export function LiveViolations({ id, initialViolations, initialStatus, initialAi
                   </div>
                   
                   <p className="text-sm leading-relaxed mb-3 text-blue-800">
-                    ActBlue has reviewed evidence submitted by this sender and verified that their matching program meets ActBlue&apos;s standards. This sender is permitted to promote this matching program. That said, political committees almost never run genuine donor matching programs – donors should remain skeptical of such claims even when permitted by ActBlue.
+                    Based on evidence patterns we&apos;ve observed, this sender appears to meet ActBlue&apos;s standards for donation matching programs.
                   </p>
                   
                   <button

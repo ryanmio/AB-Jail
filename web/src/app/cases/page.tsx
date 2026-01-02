@@ -574,7 +574,7 @@ export default async function CasesPage({ searchParams }: { searchParams?: Promi
                                             <p className="text-xs text-muted-foreground leading-relaxed">{policy.policy}</p>
                                             {isVerified && (
                                               <div className="text-xs text-accent-foreground bg-accent/30 p-2 rounded border border-accent/50">
-                                                ActBlue has determined this matching program meets their standards. However, political committees almost never run genuine donor matching programs and donors should remain skeptical of such claims even when permitted by ActBlue.
+                                                Based on evidence patterns we&apos;ve observed, this sender appears to meet ActBlue&apos;s standards for donation matching programs.
                                               </div>
                                             )}
                                             <a
