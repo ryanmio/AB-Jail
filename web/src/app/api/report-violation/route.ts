@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
   // Fetch case
   const { data: rows, error: err } = await supabase
     .from("submissions")
-    .select("id, sender_name, sender_id, raw_text, email_subject, email_body, ai_summary, image_url, landing_url, landing_screenshot_url, message_type, created_at")
+    .select("id, sender_name, sender_id, raw_text, email_subject, email_body, ai_summary, image_url, landing_url, landing_screenshot_url, message_type, created_at, email_sent_at")
     .eq("id", caseId)
     .limit(1);
   if (err) return NextResponse.json({ error: "case_load_failed" }, { status: 500 });
   const sub = rows?.[0] as
-    | { id: string; sender_name?: string | null; sender_id?: string | null; raw_text?: string | null; email_body?: string | null; landing_url?: string | null; landing_screenshot_url?: string | null; image_url?: string | null; message_type?: string | null; created_at?: string | null }
+    | { id: string; sender_name?: string | null; sender_id?: string | null; raw_text?: string | null; email_body?: string | null; landing_url?: string | null; landing_screenshot_url?: string | null; image_url?: string | null; message_type?: string | null; created_at?: string | null; email_sent_at?: string | null }
     | undefined;
   if (!sub) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -98,9 +98,10 @@ export async function POST(req: NextRequest) {
 
   // No summary in email/report body per product decision
 
-  // Format submission date
-  const submissionDate = sub.created_at 
-    ? new Date(sub.created_at).toLocaleDateString("en-US", {
+  // Format message date: prefer original email send date, fall back to submission date
+  const messageDate = sub.email_sent_at || sub.created_at;
+  const submissionDate = messageDate 
+    ? new Date(messageDate).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
