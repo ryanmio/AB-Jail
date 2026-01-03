@@ -16,6 +16,7 @@ export type IngestTextParams = {
   forwarderEmail?: string | null;
   submissionToken?: string | null;
   mediaUrls?: Array<{ url: string; contentType?: string }>;
+  emailSentAt?: Date | null; // Original email send date (for forwarded emails)
 };
 
 export type IngestResult = {
@@ -450,6 +451,9 @@ export async function ingestTextSubmission(params: IngestTextParams): Promise<In
   }
   if (params.mediaUrls && params.mediaUrls.length > 0) {
     insertRow.media_urls = params.mediaUrls;
+  }
+  if (params.emailSentAt) {
+    insertRow.email_sent_at = params.emailSentAt.toISOString();
   }
 
   // Extract ActBlue landing URL from text AND email HTML (tracking links often only in HTML)

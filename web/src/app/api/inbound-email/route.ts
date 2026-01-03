@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     let subject = "";
     let bodyPlain = "";
     let bodyHtml = "";
+    let messageHeaders = ""; // Mailgun provides original email headers as JSON array
 
     // Parse Mailgun webhook payload
     if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
+      messageHeaders = params.get("message-headers") || "";
     } else if (contentType.includes("multipart/form-data")) {
       // Use formData for multipart (handles binary attachments correctly)
       const form = await req.formData();
@@ -34,12 +36,14 @@ export async function POST(req: NextRequest) {
       subject = String(form.get("subject") || form.get("Subject") || "");
       bodyPlain = String(form.get("body-plain") || form.get("stripped-text") || form.get("text") || "");
       bodyHtml = String(form.get("body-html") || form.get("stripped-html") || form.get("html") || "");
+      messageHeaders = String(form.get("message-headers") || "");
     } else if (contentType.includes("application/json")) {
       const json = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       sender = String(json?.sender || json?.from || json?.From || "");
       subject = String(json?.subject || json?.Subject || "");
       bodyPlain = String(json?.["body-plain"] || json?.["stripped-text"] || json?.text || "");
       bodyHtml = String(json?.["body-html"] || json?.["stripped-html"] || json?.html || "");
+      messageHeaders = String(json?.["message-headers"] || "");
     } else {
       // Best-effort: try reading as text and parsing as URLSearchParams
       const rawBody = await req.text();
@@ -48,6 +52,7 @@ export async function POST(req: NextRequest) {
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
+      messageHeaders = params.get("message-headers") || "";
     }
 
     // Store envelope sender (forwarder's email) for reply feature
@@ -140,6 +145,15 @@ export async function POST(req: NextRequest) {
       parseEmailAddress(sender) ||
       sender;
 
+    // Extract original email send date (from Mailgun headers or forwarded body)
+    const originalEmailDate = extractOriginalEmailDate(messageHeaders, rawText, bodyHtml || "");
+    if (originalEmailDate) {
+      console.log("/api/inbound-email:extracted_email_date", {
+        emailSentAt: originalEmailDate.toISOString(),
+        source: messageHeaders ? "mailgun_headers" : "forwarded_body"
+      });
+    }
+
     // Generate secure token for one-time report submission via email
     const submissionToken = randomBytes(32).toString("base64url");
 
@@ -157,6 +171,7 @@ export async function POST(req: NextRequest) {
       emailFrom: originalFromLine || null, // Full original "From:" line (prefer original content; not the forwarder)
       forwarderEmail: isForwarded ? (parseEmailAddress(envelopeSender) || envelopeSender || null) : null, // Only set if forwarded
       submissionToken: submissionToken, // Secure token for email submission
+      emailSentAt: originalEmailDate || null, // Original email send date (if extractable)
     });
     
     console.log("/api/inbound-email:ingested", {
@@ -364,5 +379,98 @@ function parseEmailAddress(input: string | null | undefined): string | null {
   if (!input) return null;
   const m = input.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   return m ? m[1] : null;
+}
+
+// Extract original email Date from Mailgun's message-headers JSON array
+// Mailgun sends headers as: [["Date", "Thu, 1 Jan 2026 10:30:00 -0500"], ...]
+function extractDateFromMailgunHeaders(headersJson: string): Date | null {
+  if (!headersJson) return null;
+  try {
+    const headers = JSON.parse(headersJson) as Array<[string, string]>;
+    const dateHeader = headers.find(([name]) => name.toLowerCase() === "date");
+    if (!dateHeader || !dateHeader[1]) return null;
+    const parsed = new Date(dateHeader[1]);
+    return isValidEmailDate(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// Extract original Date: line from forwarded email body text
+// Similar pattern to extractOriginalFromLine() - looks for Date: after forward markers
+function extractOriginalDateFromBody(text: string): Date | null {
+  const lines = text.split(/\r?\n/).map(line => line.replace(/^[\s>]+/, "")); // Normalize: strip quotes/whitespace
+  
+  // Find forwarded message boundary
+  const forwardMarkers = [
+    /^-+\s*Forwarded message\s*-+/i,     // Gmail
+    /^Begin forwarded message:/i,         // Apple Mail
+    /^From:\s+.+@.+/i                     // Outlook
+  ];
+  
+  for (let i = 0; i < Math.min(lines.length, 100); i++) {
+    const isForwardBoundary = forwardMarkers.some(marker => marker.test(lines[i]));
+    
+    if (isForwardBoundary) {
+      // Search next 20 lines for Date: header
+      const searchEnd = Math.min(i + 20, lines.length);
+      for (let j = i; j < searchEnd; j++) {
+        const match = lines[j].match(/^Date:\s+(.+)$/i);
+        if (match && match[1]) {
+          const parsed = new Date(match[1]);
+          if (isValidEmailDate(parsed)) {
+            return parsed;
+          }
+        }
+        // Stop at empty line (end of header block)
+        if (lines[j].trim() === "" && j > i) break;
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Validate that a parsed date is reasonable for an email:
+// - Not NaN (invalid date)
+// - Not more than 24 hours in the future (clock skew tolerance)
+// - Not more than 1 year in the past (reasonable limit for forwarded emails)
+function isValidEmailDate(date: Date): boolean {
+  if (isNaN(date.getTime())) return false;
+  const now = Date.now();
+  const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+  const oneDayAhead = now + 24 * 60 * 60 * 1000;
+  return date.getTime() >= oneYearAgo && date.getTime() <= oneDayAhead;
+}
+
+// Extract original email send date using multiple sources
+// Priority: 1. Mailgun headers (most reliable), 2. Forwarded body text (fallback)
+function extractOriginalEmailDate(
+  messageHeaders: string,
+  bodyText: string,
+  bodyHtml: string
+): Date | null {
+  // Try Mailgun headers first (most reliable for direct emails)
+  let emailDate = extractDateFromMailgunHeaders(messageHeaders);
+  if (emailDate) {
+    return emailDate;
+  }
+  
+  // Fallback: extract from forwarded body text
+  emailDate = extractOriginalDateFromBody(bodyText);
+  if (emailDate) {
+    return emailDate;
+  }
+  
+  // Try HTML as text if plain text didn't work
+  if (bodyHtml) {
+    const htmlAsText = bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    emailDate = extractOriginalDateFromBody(htmlAsText);
+    if (emailDate) {
+      return emailDate;
+    }
+  }
+  
+  return null;
 }
 

@@ -20,6 +20,7 @@ type CaseItem = {
   email_subject?: string | null;
   processing_status?: string | null;
   created_at?: string | null;
+  email_sent_at?: string | null;
   ai_confidence?: number | string | null;
   message_type?: string | null;
   media_urls?: Array<{ url: string; contentType?: string }>;
@@ -193,6 +194,7 @@ export default async function CaseDetailPage({
   const hasReport = (data as { hasReport?: boolean }).hasReport === true
     || (Array.isArray(data.reports) && data.reports.length > 0);
   const createdAtIso = item.created_at ?? null;
+  const emailSentAtIso = item.email_sent_at ?? null;
   const isPublic = (item as unknown as { public?: boolean }).public !== false;
   const topViolation = [...(data.violations || [])]
     .sort((a, b) => (Number(b.severity || 0) - Number(a.severity || 0)) || (Number(b.confidence || 0) - Number(a.confidence || 0)))[0];
@@ -252,7 +254,13 @@ export default async function CaseDetailPage({
                 </p>
               )}
               <div className="flex items-center gap-2 flex-wrap text-xs text-slate-700">
-                {createdAtIso && (
+                {/* Show original email send date if available, otherwise submission date */}
+                {emailSentAtIso ? (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-800 border border-slate-300">
+                    <span className="mr-1">Email sent</span>
+                    <LocalTime iso={emailSentAtIso} />
+                  </span>
+                ) : createdAtIso && (
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-800 border border-slate-300">
                     <span className="mr-1">Submitted</span>
                     <LocalTime iso={createdAtIso} />

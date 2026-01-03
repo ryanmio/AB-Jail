@@ -42,6 +42,7 @@ export const submissions = pgTable(
     tokenUsedAt: timestamp("token_used_at", { withTimezone: true }),
     previewEmailSentAt: timestamp("preview_email_sent_at", { withTimezone: true }),
     previewEmailStatus: text("preview_email_status"),
+    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
   },
   (table) => {
     return {

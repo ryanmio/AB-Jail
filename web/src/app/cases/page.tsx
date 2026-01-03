@@ -14,6 +14,7 @@ import { CasesFilterForm } from "@/components/cases-filter-form";
 type SubmissionRow = {
   id: string;
   createdAt: string;
+  emailSentAt?: string | null;
   senderId: string | null;
   senderName: string | null;
   rawText: string | null;
@@ -141,6 +142,8 @@ async function loadCases(page = 1, limit = 20, q = "", codes: string[] = [], sen
       id: string;
       created_at?: string;
       createdAt?: string;
+      email_sent_at?: string | null;
+      emailSentAt?: string | null;
       sender_id?: string | null;
       senderId?: string | null;
       sender_name?: string | null;
@@ -159,6 +162,7 @@ async function loadCases(page = 1, limit = 20, q = "", codes: string[] = [], sen
     const withIssues = rows.map((r) => ({
       id: r.id,
       createdAt: (r.created_at || r.createdAt || new Date(0).toISOString()) as string,
+      emailSentAt: r.email_sent_at || r.emailSentAt || null,
       senderId: r.sender_id || r.senderId || null,
       senderName: r.sender_name || r.senderName || null,
       rawText: r.raw_text || r.rawText || null,
@@ -635,7 +639,13 @@ export default async function CasesPage({ searchParams }: { searchParams?: Promi
                           </div>
                         </div>
                         <div className="flex items-center gap-4 shrink-0">
-                          <div className="text-xs text-muted-foreground tabular-nums hidden sm:block">{formatWhen(it.createdAt)}</div>
+                          <div className="text-xs text-muted-foreground tabular-nums hidden sm:block">
+                            {it.emailSentAt ? (
+                              <span title="Original email date">{formatWhen(it.emailSentAt)}</span>
+                            ) : (
+                              formatWhen(it.createdAt)
+                            )}
+                          </div>
                           <span className="text-sm px-4 py-2 rounded-md bg-primary text-primary-foreground pointer-events-none">
                             View
                           </span>

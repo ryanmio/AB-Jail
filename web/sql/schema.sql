@@ -40,7 +40,8 @@ create table if not exists submissions (
   token_used_at timestamptz,
   preview_email_sent_at timestamptz,
   preview_email_status text,
-  media_urls jsonb default '[]'::jsonb
+  media_urls jsonb default '[]'::jsonb,
+  email_sent_at timestamptz
 );
 create index if not exists submissions_sender_idx on submissions(sender_id);
 create index if not exists submissions_created_idx on submissions(created_at);

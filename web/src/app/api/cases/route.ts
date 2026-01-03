@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
     type Row = {
       id: string;
       created_at: string;
+      email_sent_at: string | null;
       sender_id: string | null;
       sender_name: string | null;
       raw_text: string | null;
@@ -175,7 +176,7 @@ export async function GET(req: NextRequest) {
           const chunkIds = ids.slice(i, i + chunkSize);
           let chunkBuilder = supabase
             .from("submissions")
-            .select("id, created_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url");
+            .select("id, created_at, email_sent_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url");
           chunkBuilder = applyCommonFilters(chunkBuilder).in("id", chunkIds);
           const { data: chunkData, error: chunkError } = await chunkBuilder;
           if (chunkError) {
@@ -193,6 +194,7 @@ export async function GET(req: NextRequest) {
         items = paged.map((r) => ({
           id: r.id,
           createdAt: r.created_at,
+          emailSentAt: r.email_sent_at,
           senderId: r.sender_id,
           senderName: r.sender_name,
           rawText: r.raw_text,
@@ -207,7 +209,7 @@ export async function GET(req: NextRequest) {
     } else {
       let builder = supabase
         .from("submissions")
-        .select("id, created_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url", { count: "exact" });
+        .select("id, created_at, email_sent_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url", { count: "exact" });
       builder = applyCommonFilters(builder).order("created_at", { ascending: false });
 
     const { data, error, count } = await builder.range(offset, offset + limit - 1);
@@ -219,6 +221,7 @@ export async function GET(req: NextRequest) {
       items = rows.map((r) => ({
       id: r.id,
       createdAt: r.created_at,
+      emailSentAt: r.email_sent_at,
       senderId: r.sender_id,
       senderName: r.sender_name,
       rawText: r.raw_text,
