@@ -410,8 +410,9 @@ function parseEmailAddress(input: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-// Extract original Date: line from forwarded email body text or HTML
-// Looks for Date: after forward markers like "---------- Forwarded message ---------"
+// Extract original Date: or Sent: line from forwarded email body text or HTML
+// Looks for Date: or Sent: after forward markers like "---------- Forwarded message ---------"
+// Different email clients use different header names (Gmail uses "Date:", Yahoo uses "Sent:")
 function extractOriginalDateFromBody(text: string): Date | null {
   // Normalize HTML: convert <br> tags to newlines, strip other tags
   const normalized = text
@@ -435,10 +436,10 @@ function extractOriginalDateFromBody(text: string): Date | null {
     const isForwardBoundary = forwardMarkers.some(marker => marker.test(lines[i]));
     
     if (isForwardBoundary) {
-      // Search next 20 lines for Date: header
+      // Search next 20 lines for Date: or Sent: header (different email clients use different formats)
       const searchEnd = Math.min(i + 20, lines.length);
       for (let j = i; j < searchEnd; j++) {
-        const match = lines[j].match(/^Date:\s*(.+)$/i);
+        const match = lines[j].match(/^(?:Date|Sent):\s*(.+)$/i);
         if (match && match[1]) {
           const dateStr = match[1].trim();
           const parsed = parseEmailDateString(dateStr);
