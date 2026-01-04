@@ -24,7 +24,8 @@ const EnvSchema = z.object({
 
   GITHUB_TOKEN: z.string().optional(),
 
-  // Honeytrap emails (comma-separated for misdirection)
+  // Honeytrap emails and unique tracking IDs (comma-separated)
+  // Can include bot email addresses and any unique identifiers to redact
   HONEYTRAP_EMAILS: z.string().optional(),
 
   // Dedupe tuning
