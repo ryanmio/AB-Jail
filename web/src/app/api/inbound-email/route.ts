@@ -89,13 +89,14 @@ export async function POST(req: NextRequest) {
       .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*(?:\r?\n)+/im, "")
       .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*$/gim, "");
     
-    // Redact honeytrap email addresses from environment variable
+    // Redact honeytrap email addresses and unique IDs from environment variable
+    // HONEYTRAP_EMAILS can contain both email addresses and unique tracking IDs (comma-separated)
     const honeytrapEmails = env.HONEYTRAP_EMAILS 
       ? env.HONEYTRAP_EMAILS.split(',').map(e => e.trim()).filter(e => e.length > 0)
       : [];
     
     if (honeytrapEmails.length === 0) {
-      console.warn("/api/inbound-email:warning HONEYTRAP_EMAILS not configured - skipping redaction");
+      console.warn("/api/inbound-email:warning HONEYTRAP_EMAILS not configured - skipping honeytrap redaction");
     }
     
     const redactHoneytrap = (text: string) => {
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
     };
     
     rawText = redactHoneytrap(rawText);
+    subject = redactHoneytrap(subject);
     
     // Clean text for AI (removes tracking links, invisible chars, excessive whitespace)
     // Note: cleanTextForAI also strips forwarded message headers
@@ -157,6 +159,21 @@ export async function POST(req: NextRequest) {
     // Generate secure token for one-time report submission via email
     const submissionToken = randomBytes(32).toString("base64url");
 
+    // Determine forwarder email: exclude honeytrap bot emails to mark them as bot-captured
+    let forwarderEmail: string | null = null;
+    if (isForwarded) {
+      const parsedEnvelope = parseEmailAddress(envelopeSender) || envelopeSender || null;
+      if (parsedEnvelope) {
+        const isHoneytrapForwarder = honeytrapEmails.some(email => 
+          parsedEnvelope.toLowerCase().includes(email.toLowerCase())
+        );
+        // Only set forwarderEmail if NOT from a honeytrap - this keeps bot emails marked as bot-captured
+        if (!isHoneytrapForwarder) {
+          forwarderEmail = parsedEnvelope;
+        }
+      }
+    }
+
     // Insert into Supabase (with duplicate detection inside ingestTextSubmission)
     // Use cleaned text for heuristics and AI, but store raw text for reference
     const result = await ingestTextSubmission({
@@ -169,7 +186,7 @@ export async function POST(req: NextRequest) {
       emailBody: sanitizedHtml || null, // Sanitized HTML (no tracking/unsubscribe links) for display
       emailBodyOriginal: originalHtml || null, // Original HTML for URL extraction
       emailFrom: originalFromLine || null, // Full original "From:" line (prefer original content; not the forwarder)
-      forwarderEmail: isForwarded ? (parseEmailAddress(envelopeSender) || envelopeSender || null) : null, // Only set if forwarded
+      forwarderEmail: forwarderEmail, // Only set if forwarded by a real user (not a honeytrap bot)
       submissionToken: submissionToken, // Secure token for email submission
       emailSentAt: originalEmailDate || null, // Original email send date (if extractable)
     });
