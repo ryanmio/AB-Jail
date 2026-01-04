@@ -24,9 +24,11 @@ const EnvSchema = z.object({
 
   GITHUB_TOKEN: z.string().optional(),
 
-  // Honeytrap emails and unique tracking IDs (comma-separated)
-  // Can include bot email addresses and any unique identifiers to redact
+  // Honeytrap emails (comma-separated)
   HONEYTRAP_EMAILS: z.string().optional(),
+  
+  // Honeytrap tracking IDs (comma-separated)
+  HONEYTRAP_IDS: z.string().optional(),
 
   // Dedupe tuning
   DEDUP_SIMHASH_DISTANCE: z.coerce.number().default(4),
@@ -66,6 +68,7 @@ export const env: AppEnv = EnvSchema.parse({
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
 
   HONEYTRAP_EMAILS: process.env.HONEYTRAP_EMAILS,
+  HONEYTRAP_IDS: process.env.HONEYTRAP_IDS,
 
   DEDUP_SIMHASH_DISTANCE: process.env.DEDUP_SIMHASH_DISTANCE,
 });
