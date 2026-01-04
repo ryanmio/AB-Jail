@@ -385,7 +385,7 @@ function parseEmailAddress(input: string | null | undefined): string | null {
 // Looks for Date: after forward markers like "---------- Forwarded message ---------"
 function extractOriginalDateFromBody(text: string): Date | null {
   // Normalize HTML: convert <br> tags to newlines, strip other tags
-  let normalized = text
+  const normalized = text
     .replace(/<br\s*\/?>/gi, "\n")  // <br> and <br/> to newlines
     .replace(/<[^>]+>/g, " ")        // Strip other HTML tags
     .replace(/&lt;/g, "<")           // Decode HTML entities
