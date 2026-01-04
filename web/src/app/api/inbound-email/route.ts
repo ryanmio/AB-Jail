@@ -89,22 +89,34 @@ export async function POST(req: NextRequest) {
       .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*(?:\r?\n)+/im, "")
       .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*$/gim, "");
     
-    // Redact honeytrap email addresses and unique IDs from environment variable
-    // HONEYTRAP_EMAILS can contain both email addresses and unique tracking IDs (comma-separated)
+    // Redact honeytrap email addresses and unique tracking IDs from environment variables
     const honeytrapEmails = env.HONEYTRAP_EMAILS 
       ? env.HONEYTRAP_EMAILS.split(',').map(e => e.trim()).filter(e => e.length > 0)
       : [];
     
-    if (honeytrapEmails.length === 0) {
-      console.warn("/api/inbound-email:warning HONEYTRAP_EMAILS not configured - skipping honeytrap redaction");
+    const honeytrapIds = env.HONEYTRAP_IDS
+      ? env.HONEYTRAP_IDS.split(',').map(e => e.trim()).filter(e => e.length > 0)
+      : [];
+    
+    if (honeytrapEmails.length === 0 && honeytrapIds.length === 0) {
+      console.warn("/api/inbound-email:warning HONEYTRAP_EMAILS/IDS not configured - skipping honeytrap redaction");
     }
     
     const redactHoneytrap = (text: string) => {
       let result = text;
+      
+      // Redact email addresses
       for (const email of honeytrapEmails) {
         const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         result = result.replace(new RegExp(escaped, 'gi'), '*******@*******.com');
       }
+      
+      // Redact tracking IDs
+      for (const id of honeytrapIds) {
+        const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        result = result.replace(new RegExp(escaped, 'gi'), '########');
+      }
+      
       return result;
     };
     
