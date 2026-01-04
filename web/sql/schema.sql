@@ -41,10 +41,12 @@ create table if not exists submissions (
   preview_email_sent_at timestamptz,
   preview_email_status text,
   media_urls jsonb default '[]'::jsonb,
-  email_sent_at timestamptz
+  email_sent_at timestamptz,
+  sort_date timestamptz generated always as (coalesce(email_sent_at, created_at)) stored
 );
 create index if not exists submissions_sender_idx on submissions(sender_id);
 create index if not exists submissions_created_idx on submissions(created_at);
+create index if not exists submissions_sort_date_idx on submissions(sort_date desc);
 
 create table if not exists violations (
   id uuid primary key default gen_random_uuid(),

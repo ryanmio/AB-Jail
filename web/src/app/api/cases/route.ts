@@ -211,41 +211,29 @@ export async function GET(req: NextRequest) {
         throw codeFilterErr;
       }
     } else {
-      // For non-code-filtered queries, we need to fetch all matching results to sort by email_sent_at with fallback to created_at
       let builder = supabase
         .from("submissions")
         .select("id, created_at, email_sent_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url", { count: "exact" });
-      builder = applyCommonFilters(builder);
+      builder = applyCommonFilters(builder).order("sort_date", { ascending: false });
 
-      // Get total count first (without pagination, to get exact count for sorting)
-      const { data: allData, error: countError, count: totalCount } = await builder;
-      if (countError) {
-        console.error("/api/cases submissions query error", { codes, senders, q, error: countError });
-        throw countError;
+    const { data, error, count } = await builder.range(offset, offset + limit - 1);
+      if (error) {
+        console.error("/api/cases submissions query error", { codes, senders, q, error });
+        throw error;
       }
-
-      // Sort by email_sent_at (if exists) then created_at, descending
-      const allRows = (allData || []) as Row[];
-      const sortedRows = allRows.sort((a, b) => {
-        const aTime = new Date(a.email_sent_at || a.created_at).valueOf();
-        const bTime = new Date(b.email_sent_at || b.created_at).valueOf();
-        return bTime - aTime;
-      });
-
-      // Apply pagination to sorted results
-      const paged = sortedRows.slice(offset, offset + limit);
-      items = paged.map((r) => ({
-        id: r.id,
-        createdAt: r.created_at,
-        emailSentAt: r.email_sent_at,
-        senderId: r.sender_id,
-        senderName: r.sender_name,
-        rawText: r.raw_text,
-        messageType: r.message_type,
-        forwarderEmail: r.forwarder_email,
-        imageUrl: r.image_url,
-      }));
-      total = typeof totalCount === "number" ? totalCount : sortedRows.length;
+    const rows = (data || []) as Row[];
+      items = rows.map((r) => ({
+      id: r.id,
+      createdAt: r.created_at,
+      emailSentAt: r.email_sent_at,
+      senderId: r.sender_id,
+      senderName: r.sender_name,
+      rawText: r.raw_text,
+      messageType: r.message_type,
+      forwarderEmail: r.forwarder_email,
+      imageUrl: r.image_url,
+    }));
+      total = typeof count === "number" ? count : items.length + offset;
     }
 
     // Optionally include top violations (deduped by code, max 3 per case)
