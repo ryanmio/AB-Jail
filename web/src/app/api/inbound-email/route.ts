@@ -381,31 +381,25 @@ function parseEmailAddress(input: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-// Extract original email Date from Mailgun's message-headers JSON array
-// Mailgun sends headers as: [["Date", "Thu, 1 Jan 2026 10:30:00 -0500"], ...]
-function extractDateFromMailgunHeaders(headersJson: string): Date | null {
-  if (!headersJson) return null;
-  try {
-    const headers = JSON.parse(headersJson) as Array<[string, string]>;
-    const dateHeader = headers.find(([name]) => name.toLowerCase() === "date");
-    if (!dateHeader || !dateHeader[1]) return null;
-    const parsed = new Date(dateHeader[1]);
-    return isValidEmailDate(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-// Extract original Date: line from forwarded email body text
-// Similar pattern to extractOriginalFromLine() - looks for Date: after forward markers
+// Extract original Date: line from forwarded email body text or HTML
+// Looks for Date: after forward markers like "---------- Forwarded message ---------"
 function extractOriginalDateFromBody(text: string): Date | null {
-  const lines = text.split(/\r?\n/).map(line => line.replace(/^[\s>]+/, "")); // Normalize: strip quotes/whitespace
+  // Normalize HTML: convert <br> tags to newlines, strip other tags
+  const normalized = text
+    .replace(/<br\s*\/?>/gi, "\n")  // <br> and <br/> to newlines
+    .replace(/<[^>]+>/g, " ")        // Strip other HTML tags
+    .replace(/&lt;/g, "<")           // Decode HTML entities
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ");
+  
+  const lines = normalized.split(/\r?\n/).map(line => line.replace(/^[\s>]+/, "").trim());
   
   // Find forwarded message boundary
   const forwardMarkers = [
-    /^-+\s*Forwarded message\s*-+/i,     // Gmail
+    /^-+\s*Forwarded message\s*-+/i,     // Gmail: "---------- Forwarded message ---------"
     /^Begin forwarded message:/i,         // Apple Mail
-    /^From:\s+.+@.+/i                     // Outlook
+    /^From:\s+.+@.+/i                     // Outlook (starts with From: line directly)
   ];
   
   for (let i = 0; i < Math.min(lines.length, 100); i++) {
@@ -415,16 +409,65 @@ function extractOriginalDateFromBody(text: string): Date | null {
       // Search next 20 lines for Date: header
       const searchEnd = Math.min(i + 20, lines.length);
       for (let j = i; j < searchEnd; j++) {
-        const match = lines[j].match(/^Date:\s+(.+)$/i);
+        const match = lines[j].match(/^Date:\s*(.+)$/i);
         if (match && match[1]) {
-          const parsed = new Date(match[1]);
-          if (isValidEmailDate(parsed)) {
+          const dateStr = match[1].trim();
+          const parsed = parseEmailDateString(dateStr);
+          if (parsed && isValidEmailDate(parsed)) {
             return parsed;
           }
         }
-        // Stop at empty line (end of header block)
-        if (lines[j].trim() === "" && j > i) break;
+        // Stop at empty line (end of header block) but only after finding some content
+        if (lines[j].trim() === "" && j > i + 1) break;
       }
+    }
+  }
+  
+  return null;
+}
+
+// Parse various email date formats
+// Examples:
+// - "Sat, Dec 27, 2025 at 8:33 PM" (Gmail style)
+// - "Thu, 1 Jan 2026 10:30:00 -0500" (RFC 2822)
+// - "December 27, 2025 at 8:33 PM"
+function parseEmailDateString(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  // First, try standard Date parsing
+  let parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  
+  // Gmail uses "at" between date and time: "Sat, Dec 27, 2025 at 8:33 PM"
+  // Remove "at" and try again
+  const withoutAt = dateStr.replace(/\s+at\s+/i, " ");
+  parsed = new Date(withoutAt);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  
+  // Try extracting just the date portion for more complex formats
+  // Match patterns like "Dec 27, 2025" or "December 27, 2025"
+  const dateOnlyMatch = dateStr.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+  if (dateOnlyMatch) {
+    const [, month, day, year] = dateOnlyMatch;
+    // Extract time if present (e.g., "8:33 PM" or "20:33")
+    const timeMatch = dateStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    let hours = 0, minutes = 0;
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1], 10);
+      minutes = parseInt(timeMatch[2], 10);
+      const ampm = timeMatch[4];
+      if (ampm) {
+        if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+        if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+      }
+    }
+    parsed = new Date(`${month} ${day}, ${year} ${hours}:${minutes.toString().padStart(2, "0")}`);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
     }
   }
   
@@ -443,29 +486,23 @@ function isValidEmailDate(date: Date): boolean {
   return date.getTime() >= oneYearAgo && date.getTime() <= oneDayAhead;
 }
 
-// Extract original email send date using multiple sources
-// Priority: 1. Mailgun headers (most reliable), 2. Forwarded body text (fallback)
+// Extract original email send date from forwarded email body
+// Note: Mailgun's message-headers contain the FORWARDED email's date (when user forwarded to us),
+// NOT the original email's date. So we must extract from the forwarded body content.
 function extractOriginalEmailDate(
-  messageHeaders: string,
+  _messageHeaders: string, // Not used - contains wrong date (forward date, not original)
   bodyText: string,
   bodyHtml: string
 ): Date | null {
-  // Try Mailgun headers first (most reliable for direct emails)
-  let emailDate = extractDateFromMailgunHeaders(messageHeaders);
+  // Try plain text body first
+  let emailDate = extractOriginalDateFromBody(bodyText);
   if (emailDate) {
     return emailDate;
   }
   
-  // Fallback: extract from forwarded body text
-  emailDate = extractOriginalDateFromBody(bodyText);
-  if (emailDate) {
-    return emailDate;
-  }
-  
-  // Try HTML as text if plain text didn't work
+  // Try HTML body (the function handles HTML normalization internally)
   if (bodyHtml) {
-    const htmlAsText = bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    emailDate = extractOriginalDateFromBody(htmlAsText);
+    emailDate = extractOriginalDateFromBody(bodyHtml);
     if (emailDate) {
       return emailDate;
     }
