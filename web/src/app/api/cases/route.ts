@@ -188,7 +188,11 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const combined = Array.from(rowMap.values()).sort((a, b) => new Date(b.created_at).valueOf() - new Date(a.created_at).valueOf());
+        const combined = Array.from(rowMap.values()).sort((a, b) => {
+          const aTime = new Date(a.email_sent_at || a.created_at).valueOf();
+          const bTime = new Date(b.email_sent_at || b.created_at).valueOf();
+          return bTime - aTime;
+        });
         total = combined.length;
         const paged = combined.slice(offset, offset + limit);
         items = paged.map((r) => ({
@@ -210,7 +214,7 @@ export async function GET(req: NextRequest) {
       let builder = supabase
         .from("submissions")
         .select("id, created_at, email_sent_at, sender_id, sender_name, raw_text, message_type, forwarder_email, image_url", { count: "exact" });
-      builder = applyCommonFilters(builder).order("created_at", { ascending: false });
+      builder = applyCommonFilters(builder).order("sort_date", { ascending: false });
 
     const { data, error, count } = await builder.range(offset, offset + limit - 1);
       if (error) {
