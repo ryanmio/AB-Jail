@@ -123,7 +123,7 @@ const VIOLATION_FILTER_OPTIONS: ViolationFilterOption[] = VIOLATION_POLICIES.fla
   if (policy.code === "AB008") {
     return [
       { code: "AB008", label: `${policy.code} - ${policy.title}`, isPermitted: false },
-      { code: "AB008", label: `${policy.code} - ActBlue Permitted Matching Program`, isPermitted: true },
+      { code: "AB008", label: `${policy.code} - Documented Matching Program`, isPermitted: true },
     ];
   }
   return [{ code: policy.code, label: `${policy.code} - ${policy.title}` }];
