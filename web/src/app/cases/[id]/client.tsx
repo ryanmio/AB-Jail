@@ -196,10 +196,10 @@ export function LiveViolations({ id, initialViolations, initialStatus, initialAi
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-start gap-3 flex-wrap min-w-0">
                       <span className="inline-flex items-center bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-md shrink-0 border border-blue-200">
-                        ActBlue Permitted
+                        Likely Documented
                       </span>
                       <h3 className="font-semibold leading-snug break-words max-w-full min-w-0 text-blue-900">
-                        Matching Program Permitted
+                        Matching Program Documented
                       </h3>
                     </div>
                   </div>
