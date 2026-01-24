@@ -560,7 +560,7 @@ export default async function CasesPage({ searchParams }: { searchParams?: Promi
                                           }`}
                                         >
                                           <span className="truncate">
-                                            {isVerified ? 'ActBlue Permitted Matching Program' : v.title}
+                                            {isVerified ? 'Documented Matching Program' : v.title}
                                           </span>
                                         </span>
                                       </HoverCardTrigger>

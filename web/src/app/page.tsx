@@ -893,7 +893,7 @@ function RecentActivitySection() {
                   forwarderEmail: item.forwarder_email,
                 });
                 const violationType = item.violations?.[0]?.actblue_verified 
-                  ? "ActBlue Permitted Matching Program" 
+                  ? "Documented Matching Program" 
                   : item.violations?.[0]?.title || "No violations detected";
                 
                 return (
