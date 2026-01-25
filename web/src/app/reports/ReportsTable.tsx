@@ -67,21 +67,23 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
   return lastSpace > maxLength * 0.7 ? truncated.slice(0, lastSpace) : truncated;
 }
 
-function getVerdictDisplay(verdict: string | null): { label: string; color: string; bgColor: string; borderColor: string } {
-  if (!verdict || verdict === "pending") {
-    return { label: "Pending", color: "text-muted-foreground", bgColor: "bg-secondary", borderColor: "border-border" };
+function getStatusDisplay(status: string, verdict: string | null): { label: string; color: string; bgColor: string; borderColor: string } {
+  // Prioritize delivery status, but show "No Violation" if that verdict exists
+  if (verdict === "no_violation") {
+    return { label: "No Violation", color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/30" };
   }
-  switch (verdict) {
-    case "violation_confirmed":
-      return { label: "Violation Confirmed", color: "text-destructive", bgColor: "bg-destructive/10", borderColor: "border-destructive/30" };
-    case "no_violation":
-      return { label: "No Violation", color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/30" };
-    case "under_review":
-      return { label: "Under Review", color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/30" };
-    case "resolved":
-      return { label: "Resolved", color: "text-muted-foreground", bgColor: "bg-secondary", borderColor: "border-border" };
+  
+  switch (status) {
+    case "sent":
+      return { label: "Delivered", color: "text-muted-foreground", bgColor: "bg-secondary", borderColor: "border-border" };
+    case "queued":
+      return { label: "Queued", color: "text-amber-600", bgColor: "bg-amber-50", borderColor: "border-amber-200" };
+    case "failed":
+      return { label: "Failed", color: "text-destructive", bgColor: "bg-destructive/10", borderColor: "border-destructive/30" };
+    case "responded":
+      return { label: "Responded", color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/30" };
     default:
-      return { label: "Pending", color: "text-muted-foreground", bgColor: "bg-secondary", borderColor: "border-border" };
+      return { label: "Unknown", color: "text-muted-foreground", bgColor: "bg-secondary", borderColor: "border-border" };
   }
 }
 
@@ -116,7 +118,7 @@ export default function ReportsTable({ initialData, showHeader = true }: { initi
       {/* Mobile: Card Layout */}
       <div className="md:hidden space-y-4">
         {initialData.map((item) => {
-          const verdictDisplay = getVerdictDisplay(item.verdict?.verdict || null);
+          const statusDisplay = getStatusDisplay(item.report.status, item.verdict?.verdict || null);
           const senderName = item.case.sender_name || item.case.sender_id || "Unknown";
           const caseUrl = `/cases/${item.report.case_id}`;
 
@@ -185,90 +187,54 @@ export default function ReportsTable({ initialData, showHeader = true }: { initi
                   </div>
                 )}
 
-                {/* Verdict - Better placement */}
+                {/* Status - Better placement */}
                 <div className="pt-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
-                  {item.verdict ? (
-                    <HoverCard openDelay={100}>
-                      <HoverCardTrigger asChild>
-                        <button
-                          className={`inline-flex items-center rounded-sm px-3 py-1.5 text-xs font-medium ${verdictDisplay.bgColor} ${verdictDisplay.color} border ${verdictDisplay.borderColor} w-fit cursor-pointer hover:opacity-80 transition-opacity`}
-                        >
-                          {verdictDisplay.label}
-                        </button>
-                      </HoverCardTrigger>
-                      <HoverCardContent className="w-[90vw] max-w-[320px] bg-card border-border shadow-xl" align="start" sideOffset={8}>
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-border">
-                            <h3 className="text-base font-semibold text-foreground">ActBlue Decision</h3>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap mt-0.5">
-                              {formatDate(item.verdict.created_at)}
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-center">
-                              <span
-                                className={`inline-flex items-center rounded-sm px-3.5 py-1 text-sm font-semibold ${verdictDisplay.bgColor} ${verdictDisplay.color} border-2 ${verdictDisplay.borderColor}`}
-                              >
-                                {verdictDisplay.label}
-                              </span>
-                            </div>
-
-                            {item.verdict.explanation && (
-                              <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
-                                {item.verdict.explanation.length > 180
-                                  ? `${truncateAtWordBoundary(item.verdict.explanation, 180)}... [More]`
-                                  : item.verdict.explanation}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="pt-2.5 border-t border-border">
-                            <Link
-                              href={caseUrl}
-                              className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              View case
-                            </Link>
-                          </div>
+                  <HoverCard openDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <button
+                        className={`inline-flex items-center rounded-sm px-3 py-1.5 text-xs font-medium ${statusDisplay.bgColor} ${statusDisplay.color} border ${statusDisplay.borderColor} w-fit cursor-pointer hover:opacity-80 transition-opacity`}
+                      >
+                        {statusDisplay.label}
+                      </button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-[90vw] max-w-[320px] bg-card border-border shadow-xl" align="start" sideOffset={8}>
+                      <div className="space-y-3">
+                        <h3 className="text-base font-semibold text-foreground">Report Status</h3>
+                        
+                        <div className="flex items-center justify-center">
+                          <span
+                            className={`inline-flex items-center rounded-sm px-3.5 py-1 text-sm font-semibold ${statusDisplay.bgColor} ${statusDisplay.color} border-2 ${statusDisplay.borderColor}`}
+                          >
+                            {statusDisplay.label}
+                          </span>
                         </div>
-                      </HoverCardContent>
-                    </HoverCard>
-                  ) : (
-                    <HoverCard openDelay={100}>
-                      <HoverCardTrigger asChild>
-                        <button className="inline-flex items-center rounded-sm bg-secondary text-muted-foreground border border-border px-3 py-1.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity">
-                          Pending
-                        </button>
-                      </HoverCardTrigger>
-                      <HoverCardContent className="w-[90vw] max-w-[320px] bg-card border-border shadow-xl" align="start" sideOffset={8}>
-                        <div className="space-y-3">
-                          <h3 className="text-base font-semibold text-foreground">ActBlue Decision</h3>
-                          
-                          <div className="flex items-center justify-center">
-                            <span className="inline-flex items-center rounded-sm bg-secondary text-muted-foreground border-2 border-border px-3.5 py-1 text-sm font-semibold">
-                              Pending
-                            </span>
-                          </div>
 
-                          <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
-                            As of {formatDate(new Date().toISOString())}, ActBlue has not responded to our community report.
-                          </div>
-
-                          <div className="pt-2 border-t border-border">
-                            <Link
-                              href={caseUrl}
-                              className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              View case
-                            </Link>
-                          </div>
+                        <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
+                          {item.report.status === 'sent' && "This report was successfully delivered to ActBlue's Trust and Safety team for review."}
+                          {item.report.status === 'queued' && "This report is queued for delivery to ActBlue's Trust and Safety team."}
+                          {item.report.status === 'failed' && "This report failed to send. Please try again."}
+                          {item.verdict?.verdict === 'no_violation' && (item.verdict.explanation || "ActBlue determined no violation was found.")}
+                          {!['sent', 'queued', 'failed'].includes(item.report.status) && item.verdict?.verdict !== 'no_violation' && "Status information not available."}
                         </div>
-                      </HoverCardContent>
-                    </HoverCard>
-                  )}
+
+                        {item.verdict?.determined_by && (
+                          <div className="text-xs text-muted-foreground">
+                            Determined by: <span className="font-medium text-foreground">{item.verdict.determined_by}</span>
+                          </div>
+                        )}
+
+                        <div className="pt-2.5 border-t border-border">
+                          <Link
+                            href={caseUrl}
+                            className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View case
+                          </Link>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
               </div>
             </div>
@@ -286,12 +252,12 @@ export default function ReportsTable({ initialData, showHeader = true }: { initi
                 <th className="text-left py-4 px-6 font-medium text-muted-foreground text-xs">Reported</th>
                 <th className="text-left py-4 px-6 font-medium text-muted-foreground text-xs">Evidence</th>
                 <th className="text-left py-4 px-6 font-medium text-muted-foreground text-xs">Reported Violations</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground text-xs">Verdict</th>
+                <th className="text-left py-4 px-6 font-medium text-muted-foreground text-xs">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50 bg-card">
               {initialData.map((item) => {
-                const verdictDisplay = getVerdictDisplay(item.verdict?.verdict || null);
+                const statusDisplay = getStatusDisplay(item.report.status, item.verdict?.verdict || null);
                 const senderName = item.case.sender_name || item.case.sender_id || "Unknown";
                 const caseUrl = `/cases/${item.report.case_id}`;
 
@@ -363,88 +329,58 @@ export default function ReportsTable({ initialData, showHeader = true }: { initi
                       )}
                     </td>
                     <td className="py-5 px-6" onClick={(e) => e.stopPropagation()}>
-                      {item.verdict ? (
-                        <HoverCard openDelay={100}>
-                          <HoverCardTrigger asChild>
-                            <button
-                              className={`inline-flex items-center rounded-sm px-3 py-1.5 text-xs font-medium ${verdictDisplay.bgColor} ${verdictDisplay.color} border ${verdictDisplay.borderColor} w-fit cursor-pointer hover:opacity-80 transition-opacity`}
-                            >
-                              {verdictDisplay.label}
-                            </button>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-[380px] bg-card border-border shadow-xl" align="end" sideOffset={8}>
-                            <div className="space-y-3">
-                              <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-border">
-                                <h3 className="text-base font-semibold text-foreground">ActBlue Decision</h3>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap mt-0.5">
-                                  {formatDate(item.verdict.created_at)}
-                                </span>
-                              </div>
-                              
-                              <div className="space-y-2.5">
-                                <div className="flex items-center justify-center">
-                                  <span
-                                    className={`inline-flex items-center rounded-sm px-3.5 py-1 text-sm font-semibold ${verdictDisplay.bgColor} ${verdictDisplay.color} border-2 ${verdictDisplay.borderColor}`}
-                                  >
-                                    {verdictDisplay.label}
-                                  </span>
-                                </div>
-
-                                {item.verdict.explanation && (
-                                  <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
-                                    {item.verdict.explanation.length > 180
-                                      ? `${truncateAtWordBoundary(item.verdict.explanation, 180)}... [More]`
-                                      : item.verdict.explanation}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="pt-2.5 border-t border-border">
-                                <Link
-                                  href={caseUrl}
-                                  className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View case
-                                </Link>
-                              </div>
+                      <HoverCard openDelay={100}>
+                        <HoverCardTrigger asChild>
+                          <button
+                            className={`inline-flex items-center rounded-sm px-3 py-1.5 text-xs font-medium ${statusDisplay.bgColor} ${statusDisplay.color} border ${statusDisplay.borderColor} w-fit cursor-pointer hover:opacity-80 transition-opacity`}
+                          >
+                            {statusDisplay.label}
+                          </button>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-[380px] bg-card border-border shadow-xl" align="end" sideOffset={8}>
+                          <div className="space-y-3">
+                            <h3 className="text-base font-semibold text-foreground">Report Status</h3>
+                            
+                            <div className="flex items-center justify-center">
+                              <span
+                                className={`inline-flex items-center rounded-sm px-3.5 py-1 text-sm font-semibold ${statusDisplay.bgColor} ${statusDisplay.color} border-2 ${statusDisplay.borderColor}`}
+                              >
+                                {statusDisplay.label}
+                              </span>
                             </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      ) : (
-                        <HoverCard openDelay={100}>
-                          <HoverCardTrigger asChild>
-                            <button className="inline-flex items-center rounded-sm bg-secondary text-muted-foreground border border-border px-3 py-1.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity">
-                              Pending
-                            </button>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-[340px] bg-card border-border shadow-xl" align="end" sideOffset={8}>
-                            <div className="space-y-3">
-                              <h3 className="text-base font-semibold text-foreground">ActBlue Decision</h3>
-                              
-                              <div className="flex items-center justify-center">
-                                <span className="inline-flex items-center rounded-sm bg-secondary text-muted-foreground border-2 border-border px-3.5 py-1 text-sm font-semibold">
-                                  Pending
-                                </span>
-                              </div>
 
-                              <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
-                                As of {formatDate(new Date().toISOString())}, ActBlue has not responded to our community report.
-                              </div>
-
-                              <div className="pt-2 border-t border-border">
-                                <Link
-                                  href={caseUrl}
-                                  className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View case
-                                </Link>
-                              </div>
+                            <div className="text-sm text-muted-foreground leading-snug bg-secondary rounded-lg p-2.5 border border-border">
+                              {item.report.status === 'sent' && "This report was successfully delivered to ActBlue's Trust and Safety team for review."}
+                              {item.report.status === 'queued' && "This report is queued for delivery to ActBlue's Trust and Safety team."}
+                              {item.report.status === 'failed' && "This report failed to send. Please try again."}
+                              {item.verdict?.verdict === 'no_violation' && (item.verdict.explanation || "ActBlue determined no violation was found.")}
+                              {!['sent', 'queued', 'failed'].includes(item.report.status) && item.verdict?.verdict !== 'no_violation' && "Status information not available."}
                             </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      )}
+
+                            {item.verdict?.determined_by && (
+                              <div className="text-xs text-muted-foreground">
+                                Determined by: <span className="font-medium text-foreground">{item.verdict.determined_by}</span>
+                              </div>
+                            )}
+
+                            {item.verdict?.created_at && (
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(item.verdict.created_at)}
+                              </div>
+                            )}
+
+                            <div className="pt-2.5 border-t border-border">
+                              <Link
+                                href={caseUrl}
+                                className="w-full inline-flex items-center justify-center text-sm px-3 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                View case
+                              </Link>
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
                     </td>
                   </tr>
                 );

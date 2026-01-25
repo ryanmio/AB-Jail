@@ -1109,7 +1109,7 @@ function ReportsSection() {
           )}
           {!loading && reports.slice(0, 4).map((reportData) => {
             const date = new Date(reportData.report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const verdict = reportData.verdict?.verdict || 'pending';
+            const status = reportData.report.status;
             
             return (
               <div
@@ -1139,18 +1139,19 @@ function ReportsSection() {
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-border/50">
                   <span className={`text-xs font-medium ${
-                    verdict === 'pending' || verdict === 'under_review' 
+                    status === 'sent' 
                       ? 'text-muted-foreground' 
-                      : verdict === 'no_violation' || verdict === 'resolved'
-                        ? 'text-primary' 
-                        : 'text-destructive'
+                      : status === 'queued'
+                        ? 'text-amber-600' 
+                        : status === 'failed'
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
                   }`}>
-                    {verdict === 'pending' ? 'Awaiting Response' 
-                      : verdict === 'under_review' ? 'Under Review'
-                      : verdict === 'no_violation' ? 'No Violation Found' 
-                      : verdict === 'resolved' ? 'Resolved'
-                      : verdict === 'violation_confirmed' ? 'Violation Confirmed'
-                      : 'Awaiting Response'}
+                    {status === 'sent' ? 'Delivered' 
+                      : status === 'queued' ? 'Queued'
+                      : status === 'failed' ? 'Failed'
+                      : status === 'responded' ? 'Responded'
+                      : 'Unknown'}
                   </span>
                   <ArrowRight className="w-3 h-3 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
                 </div>
