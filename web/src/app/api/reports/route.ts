@@ -76,11 +76,12 @@ export async function GET() {
     // Get unique case IDs
     const caseIds = Array.from(new Set((reportRows as ReportRow[]).map((r) => r.case_id)));
     
-    // Fetch case data
+    // Fetch case data (only public cases)
     const { data: caseRows, error: caseError } = await supabase
       .from("submissions")
       .select("id, sender_name, sender_id, raw_text, image_url, created_at, message_type, email_body")
-      .in("id", caseIds);
+      .in("id", caseIds)
+      .eq("public", true);
     
     if (caseError) throw caseError;
     
