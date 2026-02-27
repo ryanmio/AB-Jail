@@ -16,11 +16,8 @@ CREATE INDEX api_keys_hash_idx ON public.api_keys (key_hash) WHERE is_active = t
 
 ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Service role full access on api_keys"
-  ON public.api_keys
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
+-- No permissive policies: anon/authenticated cannot access this table.
+-- The service role bypasses RLS automatically.
 
 -- Atomic usage tracking called fire-and-forget on each API request
 CREATE OR REPLACE FUNCTION public.increment_api_key_usage(key_id uuid)

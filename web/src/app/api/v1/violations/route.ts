@@ -32,7 +32,11 @@ export async function GET(req: NextRequest) {
 
     if (codes.length > 0) builder = builder.in("code", codes);
     if (submissionId) builder = builder.eq("submission_id", submissionId);
-    if (severityMin) builder = builder.gte("severity", Number(severityMin));
+    if (severityMin) {
+      const sev = Number(severityMin);
+      if (isNaN(sev)) return apiError("invalid_param", "severity_min must be a number.", 400);
+      builder = builder.gte("severity", sev);
+    }
     if (actblueVerified === "true") builder = builder.eq("actblue_verified", true);
     if (actblueVerified === "false") builder = builder.eq("actblue_verified", false);
 

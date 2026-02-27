@@ -4,7 +4,7 @@ import { useState, FormEvent } from "react";
 import { Header } from "@/components/homepage/Header";
 import { Footer } from "@/components/Footer";
 
-const BASE_URL = "https://abjail.org";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://abjail.org";
 
 const ENDPOINTS = [
   {
@@ -55,7 +55,7 @@ const ENDPOINTS = [
       { name: "limit", type: "number", desc: "Results per page (max 100)" },
       { name: "offset", type: "number", desc: "Number of results to skip" },
     ],
-    fields: "id, case_id, to_email, cc_email, subject, body, html_body, landing_url, status, created_at",
+    fields: "id, case_id, to_email, cc_email, subject, body, landing_url, status, created_at",
   },
   {
     method: "GET",

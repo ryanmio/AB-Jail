@@ -9,6 +9,11 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const range = searchParams.get("range") || "30";
+  const validRanges = ["7", "30", "90", "lifetime"];
+  if (!validRanges.includes(range)) {
+    return apiError("invalid_param", `range must be one of: ${validRanges.join(", ")}`, 400);
+  }
+
   const senderNames = parseArrayParam(searchParams, "sender");
   const violationCodes = parseArrayParam(searchParams, "violation");
 
@@ -18,20 +23,11 @@ export async function GET(req: NextRequest) {
     let startDate: string | null = null;
     const now = new Date();
 
-    if (range === "7") {
+    if (range !== "lifetime") {
       const d = new Date(now);
-      d.setDate(d.getDate() - 7);
-      startDate = d.toISOString();
-    } else if (range === "30") {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 30);
-      startDate = d.toISOString();
-    } else if (range === "90") {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 90);
+      d.setDate(d.getDate() - Number(range));
       startDate = d.toISOString();
     }
-    // "lifetime" or anything else: startDate stays null
 
     const { data, error } = await supabase.rpc("get_stats", {
       start_date: startDate,

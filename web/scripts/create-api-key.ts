@@ -62,7 +62,7 @@ function parseArgs(): { name: string; email: string; description?: string; noEma
   return { name, email, description: description || undefined, noEmail };
 }
 
-const SITE_URL = "https://abjail.org";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://abjail.org";
 
 function buildKeyEmail(name: string, rawKey: string) {
   const text = `Hi ${name},

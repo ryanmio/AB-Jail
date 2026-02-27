@@ -26,19 +26,16 @@ export async function authenticateApiKey(
   req: NextRequest
 ): Promise<ApiKeyRecord | NextResponse> {
   const authHeader = req.headers.get("authorization");
-  const queryKey = new URL(req.url).searchParams.get("api_key");
 
   let rawKey: string | null = null;
   if (authHeader?.startsWith("Bearer ")) {
     rawKey = authHeader.slice(7).trim();
-  } else if (queryKey) {
-    rawKey = queryKey.trim();
   }
 
   if (!rawKey) {
     return errorResponse(
       "unauthorized",
-      "Missing API key. Provide via Authorization: Bearer <key> header or ?api_key= query parameter.",
+      "Missing API key. Provide via Authorization: Bearer <key> header.",
       401
     );
   }

@@ -14,10 +14,19 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enable experimental features for better dev experience
-  experimental: {
-    // Add any experimental features you want to test
+  async headers() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" },
+        ],
+      },
+    ];
   },
+  experimental: {},
 };
 
 export default nextConfig;
