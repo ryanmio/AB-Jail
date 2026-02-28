@@ -116,10 +116,8 @@ If you have questions, reply to this email.
       <tr><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/submissions</td><td style="padding:4px 8px">Cases with full text &amp; images</td></tr>
       <tr style="background:#f8fafc"><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/violations</td><td style="padding:4px 8px">Detected policy violations</td></tr>
       <tr><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/reports</td><td style="padding:4px 8px">Reports filed to ActBlue</td></tr>
-      <tr style="background:#f8fafc"><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/verdicts</td><td style="padding:4px 8px">ActBlue verdict responses</td></tr>
-      <tr><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/stats</td><td style="padding:4px 8px">Aggregate statistics</td></tr>
-      <tr style="background:#f8fafc"><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/comments</td><td style="padding:4px 8px">Comments on submissions</td></tr>
-      <tr><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/exemptions</td><td style="padding:4px 8px">Sender exemptions</td></tr>
+      <tr style="background:#f8fafc"><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/stats</td><td style="padding:4px 8px">Aggregate statistics</td></tr>
+      <tr><td style="padding:4px 8px;font-family:monospace;color:#1e40af">/api/v1/comments</td><td style="padding:4px 8px">Comments on submissions</td></tr>
     </table>
 
     <p style="margin-top:20px;font-size:13px;color:#64748b">

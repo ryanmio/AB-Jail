@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import {
   parsePagination,
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   const q = (searchParams.get("q") || "").trim();
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     // Use inner/left join to filter by violation existence (avoids URL-length issues)
     const selectExpr =
@@ -63,13 +63,16 @@ export async function GET(req: NextRequest) {
       builder = builder.is("violations", null);
     }
 
-    if (senderName) builder = builder.ilike("sender_name", `%${senderName}%`);
-    if (senderId) builder = builder.ilike("sender_id", `%${senderId}%`);
+    const sanitizeLike = (s: string) => s.replace(/[%_\\]/g, "");
+    const sanitizeFilter = (s: string) => s.replace(/[%_\\,().:"']/g, "");
+
+    if (senderName) builder = builder.ilike("sender_name", `%${sanitizeLike(senderName)}%`);
+    if (senderId) builder = builder.ilike("sender_id", `%${sanitizeLike(senderId)}%`);
     if (messageType) builder = builder.eq("message_type", messageType);
     if (dateFrom) builder = builder.gte("sort_date", dateFrom);
     if (dateTo) builder = builder.lte("sort_date", dateTo);
     if (q) {
-      const sanitized = q.replace(/[%,().]/g, "");
+      const sanitized = sanitizeFilter(q.trim());
       if (sanitized.length > 0) {
         builder = builder.or(
           `sender_name.ilike.%${sanitized}%,sender_id.ilike.%${sanitized}%,raw_text.ilike.%${sanitized}%`

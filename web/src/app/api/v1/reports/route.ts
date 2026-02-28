@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import {
   parsePagination,
@@ -22,11 +22,12 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     let builder = supabase
       .from("reports")
-      .select(SELECTED_FIELDS, { count: "exact" });
+      .select(SELECTED_FIELDS + ", submissions!inner(id)", { count: "exact" })
+      .eq("submissions.public", true);
 
     if (caseId) builder = builder.eq("case_id", caseId);
     if (status) builder = builder.eq("status", status);
@@ -43,8 +44,11 @@ export async function GET(req: NextRequest) {
       return apiError("query_error", "Failed to fetch reports.", 500);
     }
 
-    const total = typeof count === "number" ? count : (data || []).length + offset;
-    return paginatedResponse(data || [], total, { limit, offset });
+    const rows = (data || []) as unknown as Record<string, unknown>[];
+    for (const row of rows) delete row.submissions;
+
+    const total = typeof count === "number" ? count : rows.length + offset;
+    return paginatedResponse(rows, total, { limit, offset });
   } catch (err) {
     console.error("/api/v1/reports unexpected error", err);
     return apiError("internal_error", "Internal server error.", 500);

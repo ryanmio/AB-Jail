@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import {
   parsePagination,
@@ -18,13 +18,14 @@ export async function GET(req: NextRequest) {
   const kind = searchParams.get("kind");
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     let builder = supabase
       .from("comments")
-      .select("id, submission_id, content, kind, created_at", {
+      .select("id, submission_id, content, kind, created_at, submissions!inner(id)", {
         count: "exact",
-      });
+      })
+      .eq("submissions.public", true);
 
     if (submissionId) builder = builder.eq("submission_id", submissionId);
     if (kind) builder = builder.eq("kind", kind);
@@ -41,9 +42,12 @@ export async function GET(req: NextRequest) {
       return apiError("query_error", "Failed to fetch comments.", 500);
     }
 
+    const rows = (data || []) as unknown as Record<string, unknown>[];
+    for (const row of rows) delete row.submissions;
+
     const total =
-      typeof count === "number" ? count : (data || []).length + offset;
-    return paginatedResponse(data || [], total, { limit, offset });
+      typeof count === "number" ? count : rows.length + offset;
+    return paginatedResponse(rows, total, { limit, offset });
   } catch (err) {
     console.error("/api/v1/comments unexpected error", err);
     return apiError("internal_error", "Internal server error.", 500);

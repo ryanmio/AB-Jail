@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   const escapeHtml = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const text = `New API Key Request\n\nName: ${data.name}\nEmail: ${data.email}\nOrganization: ${data.organization || "N/A"}\n\nIntended Use:\n${data.use_case}\n\nTo create a key, run:\nnpx tsx scripts/create-api-key.ts --name "${data.name}" --email "${data.email}" --description "${(data.use_case).slice(0, 100)}"`;
+  const text = `New API Key Request\n\nName: ${data.name}\nEmail: ${data.email}\nOrganization: ${data.organization || "N/A"}\n\nIntended Use:\n${data.use_case}\n\nSee the HTML version of this email for the create-key command.`;
 
   const html = `<!doctype html>
 <html><head><meta charset="utf-8"></head>
