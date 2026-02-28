@@ -19,6 +19,10 @@ ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
 -- No permissive policies: anon/authenticated cannot access this table.
 -- The service role bypasses RLS automatically.
 
+-- Revoke default table-level grants that Supabase applies to new public tables.
+REVOKE ALL ON public.api_keys FROM anon;
+REVOKE ALL ON public.api_keys FROM authenticated;
+
 -- Atomic usage tracking called fire-and-forget on each API request
 CREATE OR REPLACE FUNCTION public.increment_api_key_usage(key_id uuid)
 RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
