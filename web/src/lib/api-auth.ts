@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 
 export interface ApiKeyRecord {
   id: string;
@@ -43,7 +43,7 @@ export async function authenticateApiKey(
   const hash = hashKey(rawKey);
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("api_keys")
       .select("id, key_prefix, name, email, is_active")

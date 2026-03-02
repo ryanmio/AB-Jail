@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import {
   parsePagination,
@@ -21,14 +21,15 @@ export async function GET(req: NextRequest) {
   const actblueVerified = searchParams.get("actblue_verified");
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     let builder = supabase
       .from("violations")
       .select(
-        "id, submission_id, code, title, description, evidence_spans, severity, confidence, actblue_verified",
+        "id, submission_id, code, title, description, evidence_spans, severity, confidence, actblue_verified, submissions!inner(id)",
         { count: "exact" }
-      );
+      )
+      .eq("submissions.public", true);
 
     if (codes.length > 0) builder = builder.in("code", codes);
     if (submissionId) builder = builder.eq("submission_id", submissionId);
@@ -52,8 +53,11 @@ export async function GET(req: NextRequest) {
       return apiError("query_error", "Failed to fetch violations.", 500);
     }
 
-    const total = typeof count === "number" ? count : (data || []).length + offset;
-    return paginatedResponse(data || [], total, { limit, offset });
+    const rows = (data || []) as unknown as Record<string, unknown>[];
+    for (const row of rows) delete row.submissions;
+
+    const total = typeof count === "number" ? count : rows.length + offset;
+    return paginatedResponse(rows, total, { limit, offset });
   } catch (err) {
     console.error("/api/v1/violations unexpected error", err);
     return apiError("internal_error", "Internal server error.", 500);

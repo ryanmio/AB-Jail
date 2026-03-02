@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import { singleResponse, apiError, resolveImageUrl } from "@/lib/api-utils";
 
@@ -33,7 +33,7 @@ export async function GET(
   const { id } = await context.params;
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     const { data: submission, error } = await supabase
       .from("submissions")
@@ -71,16 +71,7 @@ export async function GET(
     const { data: reports } = await supabase
       .from("reports")
       .select(
-        "id, case_id, to_email, cc_email, subject, body, html_body, landing_url, status, created_at"
-      )
-      .eq("case_id", id)
-      .order("created_at", { ascending: false });
-
-    // Fetch verdict
-    const { data: verdicts } = await supabase
-      .from("report_verdicts")
-      .select(
-        "id, case_id, verdict, explanation, determined_by, created_at, updated_at"
+        "id, case_id, to_email, cc_email, subject, body, landing_url, status, created_at"
       )
       .eq("case_id", id)
       .order("created_at", { ascending: false });
@@ -96,7 +87,6 @@ export async function GET(
       ...row,
       violations: violations || [],
       reports: reports || [],
-      verdicts: verdicts || [],
       comments: comments || [],
     });
   } catch (err) {

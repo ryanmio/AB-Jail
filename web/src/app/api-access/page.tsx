@@ -27,9 +27,9 @@ const ENDPOINTS = [
   {
     method: "GET",
     path: "/api/v1/submissions/:id",
-    description: "Get a single submission with its violations, reports, verdicts, and comments.",
+    description: "Get a single submission with its violations, reports, and comments.",
     params: [],
-    fields: "All submission fields plus nested violations[], reports[], verdicts[], comments[]",
+    fields: "All submission fields plus nested violations[], reports[], comments[]",
   },
   {
     method: "GET",
@@ -59,18 +59,6 @@ const ENDPOINTS = [
   },
   {
     method: "GET",
-    path: "/api/v1/verdicts",
-    description: "List ActBlue's verdicts on filed reports.",
-    params: [
-      { name: "case_id", type: "uuid", desc: "Filter by submission/case ID" },
-      { name: "verdict", type: "string", desc: "Filter: violation_confirmed, no_violation, pending, under_review, resolved" },
-      { name: "limit", type: "number", desc: "Results per page (max 100)" },
-      { name: "offset", type: "number", desc: "Number of results to skip" },
-    ],
-    fields: "id, case_id, verdict, explanation, determined_by, created_at, updated_at",
-  },
-  {
-    method: "GET",
     path: "/api/v1/comments",
     description: "List comments on submissions.",
     params: [
@@ -91,16 +79,6 @@ const ENDPOINTS = [
       { name: "violation", type: "string", desc: "Filter by violation code. Repeat for multiple." },
     ],
     fields: "Aggregate KPIs, time-series data, violation breakdowns",
-  },
-  {
-    method: "GET",
-    path: "/api/v1/exemptions",
-    description: "List sender violation exemptions (policy transparency).",
-    params: [
-      { name: "limit", type: "number", desc: "Results per page (max 100)" },
-      { name: "offset", type: "number", desc: "Number of results to skip" },
-    ],
-    fields: "id, sender_pattern, violation_code, reason, created_at",
   },
 ];
 

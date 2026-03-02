@@ -31,3 +31,5 @@ RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
       last_used_at = now()
   WHERE id = key_id;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.increment_api_key_usage(uuid) FROM anon, authenticated;

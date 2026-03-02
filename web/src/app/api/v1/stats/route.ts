@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import { apiError, parseArrayParam } from "@/lib/api-utils";
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const violationCodes = parseArrayParam(searchParams, "violation");
 
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseAdmin();
 
     let startDate: string | null = null;
     const now = new Date();
