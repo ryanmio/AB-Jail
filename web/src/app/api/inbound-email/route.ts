@@ -5,6 +5,12 @@ import { cleanTextForAI } from "@/server/ingest/text-cleaner";
 import { sanitizeEmailHtml } from "@/server/ingest/html-sanitizer";
 import { env } from "@/lib/env";
 
+// Known non-ActBlue fundraisers — emails from these domains are skipped at ingest.
+const SKIP_SENDER_DOMAINS: string[] = [
+  "bounce.alerts.savethechildren.org",
+  "savethechildren.org",
+];
+
 // Mailgun sends POST with application/x-www-form-urlencoded by default
 export async function POST(req: NextRequest) {
   try {
@@ -158,6 +164,19 @@ export async function POST(req: NextRequest) {
       extractOriginalSender(rawText) ||
       parseEmailAddress(sender) ||
       sender;
+
+    // Skip ingest for known non-ActBlue senders and any addresses in INGEST_SUPPRESS_LIST
+    const senderEmail = (detectedSender || sender || "").toLowerCase();
+    const senderDomain = senderEmail.split("@")[1] ?? "";
+    const suppressList = env.INGEST_SUPPRESS_LIST
+      ? env.INGEST_SUPPRESS_LIST.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+    const shouldSkip =
+      SKIP_SENDER_DOMAINS.some(d => senderDomain === d || senderEmail === d) ||
+      suppressList.some(entry => senderEmail === entry || senderDomain === entry);
+    if (shouldSkip) {
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
 
     // Extract original email send date (from Mailgun headers or forwarded body)
     const originalEmailDate = extractOriginalEmailDate(messageHeaders, rawText, bodyHtml || "");

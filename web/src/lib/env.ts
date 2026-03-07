@@ -30,6 +30,9 @@ const EnvSchema = z.object({
   // Honeytrap tracking IDs (comma-separated)
   HONEYTRAP_IDS: z.string().optional(),
 
+  // Comma-separated emails/domains to skip ingest (e.g. distribution lists we've ended up on)
+  INGEST_SUPPRESS_LIST: z.string().optional(),
+
   // Dedupe tuning
   DEDUP_SIMHASH_DISTANCE: z.coerce.number().default(4),
 });
@@ -69,6 +72,7 @@ export const env: AppEnv = EnvSchema.parse({
 
   HONEYTRAP_EMAILS: process.env.HONEYTRAP_EMAILS,
   HONEYTRAP_IDS: process.env.HONEYTRAP_IDS,
+  INGEST_SUPPRESS_LIST: process.env.INGEST_SUPPRESS_LIST,
 
   DEDUP_SIMHASH_DISTANCE: process.env.DEDUP_SIMHASH_DISTANCE,
 });
