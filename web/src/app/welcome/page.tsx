@@ -118,7 +118,7 @@ export default function WelcomePage() {
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-semibold text-sm">2</div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">We extract additional context</h3>
-                    <p className="text-muted-foreground">If an ActBlue landing page URL is detected, we automatically capture a screenshot for context. For forwarded emails, we also reduce personalized content (like your name) to protect your privacy.</p>
+                    <p className="text-muted-foreground">If an ActBlue landing page URL is detected, we automatically capture a screenshot for context. For forwarded emails, we also redact personalized content (like your name) to protect your privacy.</p>
                   </div>
                 </div>
 

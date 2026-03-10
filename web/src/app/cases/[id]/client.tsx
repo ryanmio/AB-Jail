@@ -895,7 +895,7 @@ export function CommentsSection({ id, initialComments }: CommentsSectionProps) {
     setContent("");
 
     // Immediate user feedback and start reclassification visuals without waiting on network
-    setInfo("Comment added. Re-running AI with comments considered…");
+    setInfo("Comment added. Re-running AI analysis with your comment…");
     setToast("AI is re-running with your comment");
     setTimeout(() => setToast(null), 4000);
     if (typeof window !== "undefined") {
@@ -941,7 +941,7 @@ export function CommentsSection({ id, initialComments }: CommentsSectionProps) {
         document.body
       )}
       <h2 className="text-xl font-semibold text-slate-900 mb-2">Comments</h2>
-      <p className="text-sm text-slate-600 mb-4">Adding a comment will immediately re-run the AI policy analysis with all comments considered.</p>
+      <p className="text-sm text-slate-600 mb-4">Adding a comment will immediately re-run the AI policy analysis, taking all comments into account.</p>
 
       <div className="space-y-4">
         <div>
@@ -957,7 +957,7 @@ export function CommentsSection({ id, initialComments }: CommentsSectionProps) {
           />
           <div className="mt-1 flex items-center justify-between text-xs">
             <span className="text-slate-500">{remaining} characters left</span>
-            {atLimit && <span className="text-slate-600">Comment limit reached for this case (10)</span>}
+            {atLimit && <span className="text-slate-600">Comment limit reached (10 comments per case)</span>}
           </div>
         </div>
 
@@ -1299,14 +1299,14 @@ export function ReportingCard({ id, existingLandingUrl = null, processingStatus 
             onClick={() => setAdvancedOpen((v) => !v)}
             className="text-sm text-slate-700 underline hover:text-slate-900"
           >
-            {advancedOpen ? "Hide advanced" : "Expand for Advanced"}
+            {advancedOpen ? "Hide Advanced Options" : "Show Advanced Options"}
           </button>
         </div>
 
         {advancedOpen && (
           <>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Edit violations for report (max 2000)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Edit violations for this report (max 2,000 characters)</label>
               <textarea
                 value={violationsOverride}
                 onChange={(e) => setViolationsOverride(e.target.value.slice(0, 2000))}
