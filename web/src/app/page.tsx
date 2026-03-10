@@ -1177,7 +1177,7 @@ function HowItWorksSection() {
           </h2>
           <p className="text-muted-foreground text-lg">
             We combine user submissions and automated monitoring to collect fundraising messages, analyze them for
-            potential violations and reporting to ActBlue with a full public record.
+            potential violations, and report findings to ActBlue with a full public record.
           </p>
         </div>
 
