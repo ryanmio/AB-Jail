@@ -721,7 +721,7 @@ export default function StatsPage() {
                   className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 hover:bg-accent rounded transition-colors w-fit"
                   title={showAdvancedFilters ? "Hide additional filters" : "Show additional filters"}
                 >
-                  {showAdvancedFilters ? "Less Filters" : "More Filters"}
+                  {showAdvancedFilters ? "Fewer Filters" : "More Filters"}
                 </button>
               </div>
             </div>
@@ -828,7 +828,7 @@ export default function StatsPage() {
               <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
                 <DialogTitle>Filters</DialogTitle>
                 <DialogDescription className="text-xs">
-                  Select filters to refine statistics
+                  Select filters to refine statistics.
                 </DialogDescription>
               </DialogHeader>
               

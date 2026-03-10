@@ -36,7 +36,7 @@ export default function AboutPage() {
                   AB Jail is an open-source, community-led transparency project for political fundraising. Donors – especially elderly small-dollar givers – are being bombarded with deceptive texts and emails that erode trust and poison the well for everyone. AB Jail shines a light on these practices by accepting submissions and monitoring real-time feeds: Forward suspicious emails to <code className="bg-secondary px-1 py-0.5 rounded text-xs font-mono">submit@abjail.org</code>, upload screenshots, or paste text, and AI extracts the sender, flags likely violations of ActBlue&apos;s own published rules, generates a ready-to-send report, and adds the case to a public ledger.
                 </p>
                 <p>
-                  Additionally, AB Jail continuously monitors messages from seeded phone numbers and email addresses subscribed to campaigns, PACs, and list sellers, creating a real-time feed of fundraising solicitations that builds our public database. This two-pronged approach – manual submission and automatic collection – ensures comprehensive coverage of deceptive practices.
+                  Additionally, AB Jail continuously monitors messages from seeded phone numbers and email addresses subscribed to campaigns, PACs, and list sellers, creating a real-time feed of fundraising solicitations that builds our public database. This two-pronged approach – manual submission and automated collection – ensures comprehensive coverage of deceptive practices.
                 </p>
                 <p>
                   The goal is to protect donors and safeguard small-dollar fundraising by making patterns public. The entire project is open-source and community-driven – anyone can audit the <a href="https://github.com/ryanmio/ActBlue-Jail#" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">code</a> or contribute improvements directly.
@@ -79,7 +79,7 @@ export default function AboutPage() {
                 <div>
                   <h3 className="font-medium text-foreground mb-2">Reporting facilitation only</h3>
                   <p>
-                    Where the site generates a prefilled email or other draft to help users report a case to a platform, that draft is a convenience feature. AB Jail does not submit reports on a user&apos;s behalf in the MVP, does not guarantee any outcome, and does not represent any user before any platform or authority.
+                    Where the site generates a prefilled email or other draft to help users report a case to a platform, that draft is a convenience feature. AB Jail does not submit reports on a user&apos;s behalf, does not guarantee any outcome, and does not represent any user before any platform or authority.
                   </p>
                 </div>
                 

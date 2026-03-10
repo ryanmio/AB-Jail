@@ -34,7 +34,7 @@ const STEPS = [
     title: "How it works",
     description: (
       <>
-        Anyone can contribute: <strong>forward a deceptive fundraising email to submit@abjail.org or upload a screenshot</strong> to create a public case. We automatically identify potential violations of ActBlue’s account use policy and make the evidence public for accountability.
+        Anyone can contribute: <strong>forward a deceptive fundraising email to submit@abjail.org or upload a screenshot</strong> to create a public case. We automatically identify potential violations of ActBlue’s Account Use Policy and make the evidence public for accountability.
       </>
     ),
     icon: (

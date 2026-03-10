@@ -114,7 +114,7 @@ export function Footer({ onScrollToSubmission }: FooterProps) {
 
         <div className="border-t border-border mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground gap-4">
-            <p>© 2025 AB Jail Initiative. Open Source (MIT).</p>
+            <p>© 2026 AB Jail Initiative. Open Source (MIT).</p>
             <p>Built for transparency.</p>
           </div>
         </div>
