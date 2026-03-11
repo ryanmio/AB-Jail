@@ -343,13 +343,13 @@ export const ViolationMixChart = memo(function ViolationMixChart({
                 </div>
               </HoverCardTrigger>
               {policy && (
-                <HoverCardContent className="w-96 bg-card border-border" side="top">
+                <HoverCardContent className="w-96 bg-card border-border text-card-foreground" side="top">
                   <div className="space-y-2">
                     <div>
-                      <div className="font-mono text-xs text-muted-foreground">{policy.code}</div>
-                      <div className="font-semibold text-sm text-foreground">{policy.title}</div>
+                      <div className="font-mono text-xs text-card-foreground/60">{policy.code}</div>
+                      <div className="font-semibold text-sm text-card-foreground">{policy.title}</div>
                     </div>
-                    <p className="text-xs text-foreground leading-relaxed">{policy.policy}</p>
+                    <p className="text-xs text-card-foreground leading-relaxed">{policy.policy}</p>
                     <a
                       href={AUP_HELP_URL}
                       target="_blank"

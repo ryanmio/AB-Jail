@@ -71,7 +71,7 @@ function CheckboxList<T>({
               >
                 {active && <Check className="h-3 w-3 text-primary-foreground" />}
               </div>
-              <span className="flex-1 text-foreground text-left break-words text-sm">
+              <span className="flex-1 text-popover-foreground text-left break-words text-sm">
                 {getLabel(item)}
               </span>
             </button>
@@ -252,7 +252,7 @@ export function StatsFilters({
                       key={`sticky-range-${opt}`}
                       onClick={() => setRange(opt)}
                       className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent ${
-                        range === opt ? "bg-primary text-primary-foreground hover:bg-primary" : "text-foreground"
+                        range === opt ? "bg-primary text-primary-foreground hover:bg-primary" : "text-popover-foreground"
                       }`}
                     >
                       {RANGE_LABELS[opt]}
@@ -302,7 +302,7 @@ export function StatsFilters({
                         }`}>
                           {selectedSource.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
                         </div>
-                        <span className="text-foreground">{label}</span>
+                        <span className="text-popover-foreground">{label}</span>
                       </button>
                     ))}
                   </div>
@@ -327,7 +327,7 @@ export function StatsFilters({
                         }`}>
                           {selectedTypes.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
                         </div>
-                        <span className="text-foreground">{label}</span>
+                        <span className="text-popover-foreground">{label}</span>
                       </button>
                     ))}
                   </div>
@@ -402,7 +402,7 @@ export function StatsFilters({
                     key={`range-${opt}`}
                     onClick={() => setRange(opt)}
                     className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent ${
-                      range === opt ? "bg-primary text-primary-foreground hover:bg-primary" : "text-foreground"
+                      range === opt ? "bg-primary text-primary-foreground hover:bg-primary" : "text-popover-foreground"
                     }`}
                   >
                     {RANGE_LABELS[opt]}
@@ -457,7 +457,7 @@ export function StatsFilters({
                       }`}>
                         {selectedSource.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
                       </div>
-                      <span className="text-foreground">{label}</span>
+                      <span className="text-popover-foreground">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -483,7 +483,7 @@ export function StatsFilters({
                       }`}>
                         {selectedTypes.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
                       </div>
-                      <span className="text-foreground">{label}</span>
+                      <span className="text-popover-foreground">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -614,7 +614,7 @@ export function StatsFilters({
                   }`}>
                     {selectedSource.includes(s) && <Check className="h-3 w-3 text-primary-foreground" />}
                   </div>
-                  <span className="text-foreground">{s === "user_upload" ? "User Submitted" : "Bot Captured"}</span>
+                  <span className="text-popover-foreground">{s === "user_upload" ? "User Submitted" : "Bot Captured"}</span>
                 </button>
               ))}
             </MobileSection>
@@ -640,7 +640,7 @@ export function StatsFilters({
                   }`}>
                     {selectedTypes.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
                   </div>
-                  <span className="text-foreground">{label}</span>
+                  <span className="text-popover-foreground">{label}</span>
                 </button>
               ))}
             </MobileSection>
