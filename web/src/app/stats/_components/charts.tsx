@@ -759,7 +759,7 @@ export function SenderConcentrationChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={120}
+              width={180}
               className="fill-muted-foreground"
             />
             <Tooltip
