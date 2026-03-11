@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import {
   AreaChart, Area, BarChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip,
@@ -27,6 +28,13 @@ import {
 
 // ──────────────────────────── Enforcement Funnel ────────────────────────────
 
+const MAX_BAR_H = 88;
+
+function funnelBarHeight(value: number, total: number, min: number): number {
+  if (total <= 0 || value <= 0) return min;
+  return Math.max(min, MAX_BAR_H * (value / total));
+}
+
 export function EnforcementFunnel({
   totalCaptures,
   capturesWithViolations,
@@ -36,82 +44,136 @@ export function EnforcementFunnel({
   capturesWithViolations: number;
   totalReports: number;
 }) {
-  const violationRate = totalCaptures > 0
+  const violationPct = totalCaptures > 0
     ? ((capturesWithViolations / totalCaptures) * 100).toFixed(1)
     : "0";
-  const reportRate = totalCaptures > 0
+  const reportPct = totalCaptures > 0
     ? ((totalReports / totalCaptures) * 100).toFixed(1)
     : "0";
 
+  // Bar heights scale proportionally to captures, with generous minimums
+  // so low-volume stages remain visible but the drop-off is clearly felt.
+  const vBarH = funnelBarHeight(capturesWithViolations, totalCaptures, 38);
+  const rBarH = funnelBarHeight(totalReports, totalCaptures, 26);
+
   const stages = [
     {
-      label: "Captures",
+      label: "Total Captures",
       value: totalCaptures,
-      rate: null as string | null,
+      sub: "all political messages",
+      barH: MAX_BAR_H,
       color: CHART_COLORS.funnelCaptures,
+      pctLabel: null as string | null,
     },
     {
       label: "Violations",
       value: capturesWithViolations,
-      rate: `${violationRate}%`,
+      sub: `${violationPct}% of captures`,
+      barH: vBarH,
       color: CHART_COLORS.funnelViolations,
+      pctLabel: `${violationPct}%`,
     },
     {
       label: "Reports Filed",
       value: totalReports,
-      rate: `${reportRate}%`,
+      sub: `${reportPct}% of captures`,
+      barH: rBarH,
       color: CHART_COLORS.funnelReports,
+      pctLabel: `${reportPct}%`,
     },
   ];
 
-  const maxValue = Math.max(totalCaptures, 1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.2 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   return (
     <div className="bg-card rounded-2xl border border-border p-4 md:p-6 shadow-sm">
       <h3
-        className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6"
+        className="text-base md:text-lg font-semibold text-foreground mb-5 md:mb-7"
         style={{ fontFamily: "var(--font-playfair), ui-serif, Georgia, serif" }}
       >
         Enforcement Pipeline
       </h3>
-      <div className="flex flex-col md:flex-row items-stretch gap-3 md:gap-0">
+
+      {/* Mobile: stacked with horizontal bars */}
+      <div className="flex flex-col gap-3 md:hidden">
         {stages.map((stage, i) => {
-          const widthPct = Math.max((stage.value / maxValue) * 100, 15);
+          const pct = totalCaptures > 0 ? (stage.value / totalCaptures) * 100 : 0;
           return (
-            <div key={stage.label} className="flex-1 flex flex-col md:flex-row items-center gap-2 md:gap-0">
-              <div className="w-full md:flex-1">
-                <div className="text-xs text-muted-foreground mb-1 text-center md:text-left">
-                  {stage.label}
-                </div>
-                <div
-                  className="rounded-lg py-3 px-4 text-center transition-all"
-                  style={{
-                    backgroundColor: stage.color,
-                    width: `${widthPct}%`,
-                    minWidth: "100%",
-                    opacity: 0.9,
-                  }}
-                >
-                  <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
-                    {stage.value.toLocaleString()}
-                  </div>
-                  {stage.rate && (
-                    <div className="text-xs text-white/80 mt-0.5">
-                      {stage.rate} of captures
-                    </div>
-                  )}
-                </div>
+            <div key={stage.label}>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-xs text-muted-foreground">{stage.label}</span>
+                <span className="text-lg font-bold text-foreground tabular-nums">{stage.value.toLocaleString()}</span>
               </div>
-              {i < stages.length - 1 && (
-                <div className="hidden md:flex items-center px-2 text-muted-foreground">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              )}
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: stage.color }}
+                />
+              </div>
+              {stage.pctLabel && <div className="text-xs text-muted-foreground mt-1">{stage.sub}</div>}
+              {i < stages.length - 1 && <div className="mt-3 border-t border-border/40" />}
             </div>
           );
         })}
+      </div>
+
+      {/* Desktop: step-down bar chart */}
+      <div ref={containerRef} className="hidden md:flex items-end" style={{ height: `${MAX_BAR_H + 80}px` }}>
+        {stages.map((stage, i) => (
+          <div key={stage.label} className="flex-1 flex flex-col justify-between h-full">
+            {/* Text at top */}
+            <div className="pb-3">
+              <div className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">
+                {stage.label}
+              </div>
+              <div className="text-3xl font-bold text-foreground tabular-nums leading-none">
+                {stage.value.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1.5">{stage.sub}</div>
+            </div>
+
+            {/* Proportional bar rising from bottom, with grow-in animation */}
+            <div className="flex items-end gap-0">
+              <motion.div
+                className="w-full rounded-t-lg"
+                initial={{ height: 0 }}
+                animate={{ height: visible ? stage.barH : 0 }}
+                transition={{ duration: 0.6, delay: i * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
+                style={{ backgroundColor: stage.color }}
+              />
+              {/* Narrow gap / connector between bars */}
+              {i < stages.length - 1 && (
+                <div className="w-2 shrink-0" />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: percentage labels below the bars */}
+      <div className="hidden md:flex mt-2">
+        {stages.map((stage) => (
+          <div key={stage.label} className="flex-1 text-xs text-muted-foreground tabular-nums">
+            {stage.pctLabel ? (
+              <span
+                className="inline-block rounded-sm px-1.5 py-0.5 font-medium text-white text-[11px]"
+                style={{ backgroundColor: stage.color }}
+              >
+                {stage.pctLabel}
+              </span>
+            ) : (
+              <span className="text-muted-foreground text-[11px]">100%</span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
