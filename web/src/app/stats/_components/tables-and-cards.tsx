@@ -76,18 +76,11 @@ export function KpiCards({
   const cards = showingPermittedOnly
     ? [
         {
-          label: "Captures Detected",
+          label: "Total Captures",
           value: kpis.total_captures.toLocaleString(),
           description: "Permitted matching program activity",
           sparkData: captures_by_bucket,
           sparkColor: CHART_COLORS.captures,
-        },
-        {
-          label: "Reports Filed",
-          value: kpis.total_reports.toLocaleString(),
-          description: `${reportRate}% of captures reported`,
-          sparkData: reports_by_bucket,
-          sparkColor: CHART_COLORS.reports,
         },
         {
           label: "Senders Flagged",
@@ -96,15 +89,6 @@ export function KpiCards({
           sparkData: null,
           sparkColor: CHART_COLORS.violations,
         },
-        {
-          label: "Total Captures",
-          value: kpis.total_captures.toLocaleString(),
-          description: `${kpis.user_uploads.toLocaleString()} user / ${kpis.honeytraps.toLocaleString()} bot`,
-          sparkData: captures_by_bucket,
-          sparkColor: CHART_COLORS.captures,
-        },
-      ]
-    : [
         {
           label: "Violation Rate",
           value: `${violationRate}%`,
@@ -119,6 +103,15 @@ export function KpiCards({
           sparkData: reports_by_bucket,
           sparkColor: CHART_COLORS.reports,
         },
+      ]
+    : [
+        {
+          label: "Total Captures",
+          value: kpis.total_captures.toLocaleString(),
+          description: `${kpis.user_uploads.toLocaleString()} user / ${kpis.honeytraps.toLocaleString()} bot`,
+          sparkData: captures_by_bucket,
+          sparkColor: CHART_COLORS.captures,
+        },
         {
           label: "Senders Flagged",
           value: (top_senders?.length || 0).toLocaleString(),
@@ -127,11 +120,18 @@ export function KpiCards({
           sparkColor: CHART_COLORS.violations,
         },
         {
-          label: "Total Captures",
-          value: kpis.total_captures.toLocaleString(),
-          description: `${kpis.user_uploads.toLocaleString()} user / ${kpis.honeytraps.toLocaleString()} bot`,
-          sparkData: captures_by_bucket,
-          sparkColor: CHART_COLORS.captures,
+          label: "Violation Rate",
+          value: `${violationRate}%`,
+          description: `${kpis.captures_with_violations.toLocaleString()} of ${kpis.total_captures.toLocaleString()} captures`,
+          sparkData: violations_by_bucket,
+          sparkColor: CHART_COLORS.violations,
+        },
+        {
+          label: "Reports Filed",
+          value: kpis.total_reports.toLocaleString(),
+          description: `${reportRate}% of captures reported`,
+          sparkData: reports_by_bucket,
+          sparkColor: CHART_COLORS.reports,
         },
       ];
 
