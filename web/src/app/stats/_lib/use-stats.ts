@@ -89,9 +89,9 @@ export const CHART_COLORS = {
   sms: "hsl(142, 76%, 36%)",
   email: "hsl(224, 76%, 48%)",
   unknown: "hsl(213, 94%, 68%)",
-  funnelCaptures: "hsl(215, 20%, 65%)",
+  funnelCaptures: "hsl(142, 76%, 36%)",
   funnelViolations: "hsl(224, 76%, 48%)",
-  funnelReports: "hsl(142, 76%, 36%)",
+  funnelReports: "hsl(213, 94%, 68%)",
 };
 
 export const PIE_COLORS = [
