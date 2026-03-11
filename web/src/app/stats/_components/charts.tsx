@@ -35,6 +35,11 @@ function funnelBarHeight(value: number, total: number, min: number): number {
   return Math.max(min, MAX_BAR_H * (value / total));
 }
 
+// Converts "hsl(x, y%, z%)" → "hsla(x, y%, z%, alpha)" for soft fills
+function hsla(hsl: string, alpha: number): string {
+  return hsl.replace("hsl(", "hsla(").replace(")", `, ${alpha})`);
+}
+
 export function EnforcementFunnel({
   totalCaptures,
   capturesWithViolations,
@@ -115,7 +120,10 @@ export function EnforcementFunnel({
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: stage.color }}
+                  style={{
+                    width: `${Math.max(pct, 2)}%`,
+                    background: `linear-gradient(to right, ${hsla(stage.color, 0.8)}, ${hsla(stage.color, 0.45)})`,
+                  }}
                 />
               </div>
               {stage.pctLabel && <div className="text-xs text-muted-foreground mt-1">{stage.sub}</div>}
@@ -143,11 +151,14 @@ export function EnforcementFunnel({
             {/* Proportional bar rising from bottom, with grow-in animation */}
             <div className="flex items-end gap-0">
               <motion.div
-                className="w-full rounded-t-lg"
+                className="w-full rounded-t-lg overflow-hidden"
                 initial={{ height: 0 }}
                 animate={{ height: visible ? stage.barH : 0 }}
                 transition={{ duration: 0.6, delay: i * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
-                style={{ backgroundColor: stage.color }}
+                style={{
+                  background: `linear-gradient(to bottom, ${hsla(stage.color, 0.45)}, ${hsla(stage.color, 0.12)})`,
+                  borderTop: `2px solid ${hsla(stage.color, 0.8)}`,
+                }}
               />
               {/* Narrow gap / connector between bars */}
               {i < stages.length - 1 && (
@@ -164,8 +175,12 @@ export function EnforcementFunnel({
           <div key={stage.label} className="flex-1 text-xs text-muted-foreground tabular-nums">
             {stage.pctLabel ? (
               <span
-                className="inline-block rounded-sm px-1.5 py-0.5 font-medium text-white text-[11px]"
-                style={{ backgroundColor: stage.color }}
+                className="inline-block rounded-sm px-1.5 py-0.5 font-medium text-[11px]"
+                style={{
+                  backgroundColor: hsla(stage.color, 0.15),
+                  color: stage.color,
+                  border: `1px solid ${hsla(stage.color, 0.35)}`,
+                }}
               >
                 {stage.pctLabel}
               </span>
