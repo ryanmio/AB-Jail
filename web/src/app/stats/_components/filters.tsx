@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   Dialog,
@@ -174,6 +174,20 @@ export function StatsFilters({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
+  const [isStuck, setIsStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Detect when the filter section scrolls out of view
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsStuck(!entry.isIntersecting),
+      { threshold: 0, rootMargin: "-64px 0px 0px 0px" }, // 64px = header height (h-16)
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -215,6 +229,144 @@ export function StatsFilters({
 
   return (
     <>
+      {/* Sticky filter bar -- appears pinned below the header when the main filters scroll out of view */}
+      <div
+        className={`fixed top-16 left-0 right-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-sm transition-all duration-200 ${
+          isStuck ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="container mx-auto px-6 md:px-12 max-w-6xl py-2.5">
+          {/* Desktop: right-aligned inline filters matching the page layout */}
+          <div className="hidden md:flex flex-wrap gap-2 items-center justify-end">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 hover:bg-accent rounded transition-colors mr-1"
+              >
+                {showAdvanced ? "Fewer Filters" : "More Filters"}
+              </button>
+            <div className="flex flex-wrap gap-2 items-center justify-end">
+              <FilterButton label={RANGE_LABELS[range]} count={0}>
+                <div className="p-1">
+                  {RANGE_ORDER.map((opt) => (
+                    <button
+                      key={`sticky-range-${opt}`}
+                      onClick={() => setRange(opt)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent ${
+                        range === opt ? "bg-primary text-primary-foreground hover:bg-primary" : "text-foreground"
+                      }`}
+                    >
+                      {RANGE_LABELS[opt]}
+                    </button>
+                  ))}
+                </div>
+              </FilterButton>
+              <FilterButton label="Violations" count={selectedViolations.length}>
+                <CheckboxList
+                  items={VIOLATION_FILTER_OPTIONS}
+                  selected={selectedViolations}
+                  onToggle={toggleViolation}
+                  getKey={(v) => `sticky-${v.code}-${v.isPermitted ?? "none"}`}
+                  getLabel={(v) => v.label}
+                  isSelected={(v) =>
+                    selectedViolations.some((sv) => sv.code === v.code && sv.isPermitted === v.isPermitted)
+                  }
+                  searchPlaceholder="Search violations..."
+                />
+              </FilterButton>
+              <FilterButton label="Senders" count={selectedSenders.length}>
+                <CheckboxList
+                  items={allSenders}
+                  selected={selectedSenders}
+                  onToggle={toggleSender}
+                  getKey={(s) => `sticky-${s}`}
+                  getLabel={(s) => s}
+                  isSelected={(s) => selectedSenders.includes(s)}
+                  searchPlaceholder="Search senders..."
+                />
+              </FilterButton>
+
+              {showAdvanced && (
+                <FilterButton label="Source" count={selectedSource.length}>
+                  <div className="p-2">
+                    {[
+                      { value: "user_upload", label: "User Submitted" },
+                      { value: "honeytrap", label: "Bot Captured" },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={`sticky-src-${value}`}
+                        onClick={() => toggleSource(value)}
+                        className="w-full flex items-center gap-2 px-2 py-2 text-sm hover:bg-accent rounded-md text-left transition-colors"
+                      >
+                        <div className={`flex h-4 w-4 items-center justify-center rounded border shrink-0 ${
+                          selectedSource.includes(value) ? "bg-primary border-primary" : "border-border"
+                        }`}>
+                          {selectedSource.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </div>
+                        <span className="text-foreground">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </FilterButton>
+              )}
+
+              {showAdvanced && (
+                <FilterButton label="Type" count={selectedTypes.length}>
+                  <div className="p-2">
+                    {[
+                      { value: "sms", label: "SMS" },
+                      { value: "email", label: "Email" },
+                      { value: "unknown", label: "Other" },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={`sticky-type-${value}`}
+                        onClick={() => toggleType(value)}
+                        className="w-full flex items-center gap-2 px-2 py-2 text-sm hover:bg-accent rounded-md text-left transition-colors"
+                      >
+                        <div className={`flex h-4 w-4 items-center justify-center rounded border shrink-0 ${
+                          selectedTypes.includes(value) ? "bg-primary border-primary" : "border-border"
+                        }`}>
+                          {selectedTypes.includes(value) && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </div>
+                        <span className="text-foreground">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </FilterButton>
+              )}
+
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile: compact sticky trigger */}
+          <div className="md:hidden flex items-center gap-2 w-full">
+            <span className="text-sm font-medium text-foreground truncate">{RANGE_LABELS[range]}</span>
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-primary text-primary-foreground text-xs px-2 py-0.5 shrink-0">
+                {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""}
+              </span>
+            )}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-border bg-card text-foreground hover:bg-accent transition-colors shrink-0"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sentinel: intersection observer watches this to know when to show sticky bar */}
+      <div ref={sentinelRef} />
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h2
           className="text-2xl md:text-3xl font-bold tracking-tight text-foreground"
