@@ -311,57 +311,6 @@ export const SenderTable = memo(function SenderTable({
   );
 });
 
-// ──────────────────────────── Fundraising Breakdown ────────────────────────────
-
-export function FundraisingBreakdown({
-  data,
-}: {
-  data: AdvancedStatsData["fundraising_split"];
-}) {
-  if (!data) return null;
-  const total = data.fundraising + data.non_fundraising + data.unknown;
-  if (total === 0) return null;
-
-  const pct = (n: number) => total > 0 ? ((n / total) * 100).toFixed(1) : "0";
-
-  return (
-    <div className="bg-card rounded-2xl border border-border p-4 md:p-5 shadow-sm">
-      <h3
-        className="text-base md:text-lg font-semibold text-foreground mb-3"
-        style={{ fontFamily: "var(--font-playfair), ui-serif, Georgia, serif" }}
-      >
-        Fundraising Breakdown
-      </h3>
-      <div className="space-y-3">
-        {[
-          { label: "Fundraising", count: data.fundraising, color: CHART_COLORS.violations },
-          { label: "Non-Fundraising", count: data.non_fundraising, color: CHART_COLORS.captures },
-          { label: "Unknown", count: data.unknown, color: "hsl(215, 20%, 65%)" },
-        ].map((row) => (
-          <div key={row.label}>
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-foreground">{row.label}</span>
-              <span className="text-muted-foreground tabular-nums">
-                {row.count.toLocaleString()} ({pct(row.count)}%)
-              </span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${(row.count / total) * 100}%`,
-                  backgroundColor: row.color,
-                  minWidth: row.count > 0 ? "4px" : "0",
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ──────────────────────────── Data Request Section ────────────────────────────
 
 export function DataRequestSection() {

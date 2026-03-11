@@ -1,6 +1,6 @@
 -- Advanced stats RPC for the revamped stats page.
 -- Returns sender intelligence, domain/link data, message type trends,
--- source trends, violation code trends, and fundraising breakdown.
+-- source trends, and violation code trends.
 -- Uses the same filter parameters as get_stats for consistency.
 
 create or replace function get_advanced_stats(
@@ -311,39 +311,6 @@ begin
         group by bucket_key, v.code
         order by bucket_key, v.code
       ) code_buckets
-    ),
-
-    -- Fundraising breakdown
-    'fundraising_split', (
-      select json_build_object(
-        'fundraising', count(*) filter (where s.is_fundraising = true),
-        'non_fundraising', count(*) filter (where s.is_fundraising = false),
-        'unknown', count(*) filter (where s.is_fundraising is null)
-      )
-      from submissions s
-      where s.created_at >= start_date and s.created_at <= end_date
-        and s.public = true
-        and (not filter_enabled or coalesce(s.sender_name, s.sender_id, 'Unknown') = any(sender_names))
-        and (not violation_filter_enabled or exists (
-          select 1 from violations v
-          where v.submission_id = s.id
-            and v.code = any(violation_codes)
-            and (
-              case when violation_permitted_flags[array_position(violation_codes, v.code)] is null then v.actblue_verified = false
-                   when violation_permitted_flags[array_position(violation_codes, v.code)] = true then v.actblue_verified = true
-                   else v.actblue_verified = false
-              end
-            )
-        ))
-        and (not source_filter_enabled or (
-          case
-            when 'user_upload' = any(sources) and 'honeytrap' = any(sources) then true
-            when 'user_upload' = any(sources) then (s.message_type::text = 'unknown') or (s.message_type::text = 'email' and s.forwarder_email is not null)
-            when 'honeytrap' = any(sources) then (s.message_type::text = 'sms') or (s.message_type::text = 'email' and s.forwarder_email is null)
-            else false
-          end
-        ))
-        and (not type_filter_enabled or s.message_type::text = any(message_types))
     )
   );
 

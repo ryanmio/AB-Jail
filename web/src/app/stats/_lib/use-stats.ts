@@ -65,11 +65,6 @@ export type AdvancedStatsData = {
     code: string;
     count: number;
   }>;
-  fundraising_split: {
-    fundraising: number;
-    non_fundraising: number;
-    unknown: number;
-  };
 };
 
 export type DataRequestField = "reviewed_messages" | "detected_violations" | "email_html" | "non_fundraising" | "verdicts";

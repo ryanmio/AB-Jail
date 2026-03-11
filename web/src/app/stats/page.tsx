@@ -6,7 +6,7 @@ import { Header } from "@/components/homepage/Header";
 import { Footer } from "@/components/Footer";
 import { useFilters, useStats } from "./_lib/use-stats";
 import { StatsFilters } from "./_components/filters";
-import { KpiCards, SenderTable, FundraisingBreakdown, DataRequestSection } from "./_components/tables-and-cards";
+import { KpiCards, SenderTable, DataRequestSection } from "./_components/tables-and-cards";
 import {
   EnforcementFunnel,
   TimelineChart,
@@ -176,13 +176,7 @@ function StatsPageContent() {
                   </AnimatedSection>
                 )}
 
-                {advancedData && (
-                  <AnimatedSection delay={0.35}>
-                    <FundraisingBreakdown data={advancedData.fundraising_split} />
-                  </AnimatedSection>
-                )}
-
-                <AnimatedSection delay={0.4}>
+                <AnimatedSection delay={0.35}>
                   <DataRequestSection />
                 </AnimatedSection>
               </>
