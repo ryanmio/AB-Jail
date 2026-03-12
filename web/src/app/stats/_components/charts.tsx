@@ -831,7 +831,7 @@ export function SenderConcentrationChart({
           Sender Concentration
         </h3>
         {top5Pct !== null && (
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
+          <span className="text-xs text-muted-foreground">
             Top 5 = {top5Pct}% of violations
           </span>
         )}
