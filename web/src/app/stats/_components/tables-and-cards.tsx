@@ -155,7 +155,7 @@ export function KpiCards({
 
 // ──────────────────────────── Enhanced Sender Table ────────────────────────────
 
-type SortKey = "sender" | "total_captures" | "captures_with_violations" | "violation_rate" | "top_violation_code" | "first_seen" | "last_seen";
+type SortKey = "sender" | "total_captures" | "total_violations" | "captures_with_violations" | "violation_rate" | "top_violation_code" | "first_seen" | "last_seen";
 type SortDir = "asc" | "desc";
 
 export const SenderTable = memo(function SenderTable({
@@ -165,7 +165,7 @@ export const SenderTable = memo(function SenderTable({
 }) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortKey, setSortKey] = useState<SortKey>("captures_with_violations");
+  const [sortKey, setSortKey] = useState<SortKey>("total_violations");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const itemsPerPage = 10;
 
@@ -248,7 +248,7 @@ export const SenderTable = memo(function SenderTable({
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <div className="text-muted-foreground">Messages: <span className="text-foreground font-medium">{s.total_captures}</span></div>
-              <div className="text-muted-foreground">Violations: <span className="text-foreground font-medium">{s.captures_with_violations}</span></div>
+              <div className="text-muted-foreground">Violations: <span className="text-foreground font-medium">{s.total_violations}</span></div>
               <div className="text-muted-foreground">Rate: <span className="text-foreground font-medium">{s.violation_rate}%</span></div>
               {s.top_violation_code && <div className="text-muted-foreground">Top: <span className="font-mono text-foreground">{s.top_violation_code}</span></div>}
             </div>
@@ -263,7 +263,7 @@ export const SenderTable = memo(function SenderTable({
             <tr>
               <SortHeader k="sender" label="Sender" />
               <SortHeader k="total_captures" label="Messages" align="text-right" />
-              <SortHeader k="captures_with_violations" label="Violations" align="text-right" />
+              <SortHeader k="total_violations" label="Violations" align="text-right" />
               <SortHeader k="violation_rate" label="Rate" align="text-right" />
               <SortHeader k="top_violation_code" label="Top Code" align="text-center" />
               <SortHeader k="first_seen" label="First Seen" align="text-right" />
@@ -283,7 +283,7 @@ export const SenderTable = memo(function SenderTable({
               >
                 <td className="py-2 pr-4 text-foreground truncate max-w-[200px]">{s.sender}</td>
                 <td className="py-2 pr-4 text-foreground tabular-nums text-right">{s.total_captures}</td>
-                <td className="py-2 pr-4 text-foreground tabular-nums text-right">{s.captures_with_violations}</td>
+                <td className="py-2 pr-4 text-foreground tabular-nums text-right">{s.total_violations}</td>
                 <td className="py-2 pr-4 text-foreground tabular-nums text-right">{s.violation_rate}%</td>
                 <td className="py-2 pr-4 text-center font-mono text-xs">{s.top_violation_code || "—"}</td>
                 <td className="py-2 pr-4 text-muted-foreground text-right text-xs">{s.first_seen}</td>

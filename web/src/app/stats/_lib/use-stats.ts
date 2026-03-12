@@ -40,6 +40,7 @@ export type AdvancedStatsData = {
   sender_stats: Array<{
     sender: string;
     total_captures: number;
+    total_violations: number;
     captures_with_violations: number;
     violation_rate: number;
     top_violation_code: string | null;
