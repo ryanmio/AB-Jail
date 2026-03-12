@@ -809,6 +809,7 @@ export function SenderConcentrationChart({
     cumulative += s.captures_with_violations;
     return {
       sender: s.sender.length > maxNameLen ? s.sender.slice(0, maxNameLen - 2) + "…" : s.sender,
+      fullSender: s.sender,
       violations: s.captures_with_violations,
       cumulativePct: Math.round((cumulative / totalViolations) * 100),
     };
@@ -855,7 +856,7 @@ export function SenderConcentrationChart({
                 const d = payload[0].payload;
                 return (
                   <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-xl">
-                    <div className="font-semibold text-card-foreground">{d.sender}</div>
+                    <div className="font-semibold text-card-foreground">{d.fullSender}</div>
                     <div className="text-card-foreground">Violations: <span className="font-mono">{d.violations}</span></div>
                     <div className="text-card-foreground">Cumulative: <span className="font-mono">{d.cumulativePct}%</span></div>
                   </div>
