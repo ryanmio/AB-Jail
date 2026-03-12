@@ -862,7 +862,7 @@ export function SenderConcentrationChart({
                 );
               }}
             />
-            <Bar dataKey="violations" fill={CHART_COLORS.violations} fillOpacity={0.7} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="violations" fill={CHART_COLORS.violations} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
