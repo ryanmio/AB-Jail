@@ -37,10 +37,9 @@ begin
         select
           coalesce(s.sender_name, s.sender_id, 'Unknown') as sender,
           count(distinct s.id) as total_captures,
-          count(v.id) as total_violations,
-          count(distinct case when v.id is not null then s.id end) as captures_with_violations,
+          count(distinct case when v.id is not null and v.actblue_verified = false then s.id end) as captures_with_violations,
           round(
-            count(distinct case when v.id is not null then s.id end)::numeric
+            count(distinct case when v.id is not null and v.actblue_verified = false then s.id end)::numeric
             / nullif(count(distinct s.id), 0) * 100, 1
           ) as violation_rate,
           (
@@ -53,7 +52,7 @@ begin
           ) as top_violation_code,
           min(s.created_at)::date as first_seen,
           max(s.created_at)::date as last_seen,
-          count(distinct case when v.id is not null then s.id end) >= 3 as is_repeat_offender
+          count(distinct case when v.id is not null and v.actblue_verified = false then s.id end) >= 3 as is_repeat_offender
         from submissions s
         left join violations v on v.submission_id = s.id
           and (violation_filter_enabled or v.actblue_verified = false)
