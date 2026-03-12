@@ -839,9 +839,9 @@ export function SenderConcentrationChart({
         <ResponsiveContainer width="100%" height={Math.max(200, sorted.length * 32 + 40)}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
             <defs>
-              <linearGradient id="senderBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLORS.violations} stopOpacity={0.9} />
-                <stop offset="100%" stopColor={CHART_COLORS.violations} stopOpacity={0.45} />
+              <linearGradient id="senderBarGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={CHART_COLORS.violations} stopOpacity={0.5} />
+                <stop offset="100%" stopColor={CHART_COLORS.violations} stopOpacity={0.85} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
