@@ -785,11 +785,6 @@ export function SenderConcentrationChart({
 }: {
   senders: AdvancedStatsData["sender_stats"];
 }) {
-  if (!senders || senders.length < 2) return null;
-
-  const totalViolations = senders.reduce((sum, s) => sum + s.captures_with_violations, 0);
-  if (totalViolations === 0) return null;
-
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -797,6 +792,11 @@ export function SenderConcentrationChart({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  if (!senders || senders.length < 2) return null;
+
+  const totalViolations = senders.reduce((sum, s) => sum + s.captures_with_violations, 0);
+  if (totalViolations === 0) return null;
 
   const maxNameLen = isMobile ? 11 : 26;
 
