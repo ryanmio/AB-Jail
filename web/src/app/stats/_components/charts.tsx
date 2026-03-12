@@ -798,7 +798,7 @@ export function SenderConcentrationChart({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const maxNameLen = isMobile ? 16 : 26;
+  const maxNameLen = isMobile ? 11 : 26;
 
   const sorted = [...senders]
     .sort((a, b) => b.captures_with_violations - a.captures_with_violations)
@@ -838,12 +838,6 @@ export function SenderConcentrationChart({
       <div className="-ml-2 md:ml-0">
         <ResponsiveContainer width="100%" height={Math.max(200, sorted.length * 32 + 40)}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
-            <defs>
-              <linearGradient id="senderBarGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={CHART_COLORS.violations} stopOpacity={0.5} />
-                <stop offset="100%" stopColor={CHART_COLORS.violations} stopOpacity={0.85} />
-              </linearGradient>
-            </defs>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
             <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} className="fill-muted-foreground" />
             <YAxis
@@ -852,7 +846,7 @@ export function SenderConcentrationChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={isMobile ? 110 : 180}
+              width={isMobile ? 88 : 180}
               className="fill-muted-foreground"
             />
             <Tooltip
@@ -868,7 +862,7 @@ export function SenderConcentrationChart({
                 );
               }}
             />
-            <Bar dataKey="violations" fill="url(#senderBarGrad)" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="violations" fill={CHART_COLORS.violations} fillOpacity={0.7} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
