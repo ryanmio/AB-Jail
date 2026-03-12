@@ -790,6 +790,16 @@ export function SenderConcentrationChart({
   const totalViolations = senders.reduce((sum, s) => sum + s.captures_with_violations, 0);
   if (totalViolations === 0) return null;
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const maxNameLen = isMobile ? 16 : 26;
+
   const sorted = [...senders]
     .sort((a, b) => b.captures_with_violations - a.captures_with_violations)
     .slice(0, 10);
@@ -798,7 +808,7 @@ export function SenderConcentrationChart({
   const chartData = sorted.map((s) => {
     cumulative += s.captures_with_violations;
     return {
-      sender: s.sender.length > 20 ? s.sender.slice(0, 18) + "..." : s.sender,
+      sender: s.sender.length > maxNameLen ? s.sender.slice(0, maxNameLen - 2) + "…" : s.sender,
       violations: s.captures_with_violations,
       cumulativePct: Math.round((cumulative / totalViolations) * 100),
     };
@@ -828,6 +838,12 @@ export function SenderConcentrationChart({
       <div className="-ml-2 md:ml-0">
         <ResponsiveContainer width="100%" height={Math.max(200, sorted.length * 32 + 40)}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
+            <defs>
+              <linearGradient id="senderBarGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.violations} stopOpacity={0.9} />
+                <stop offset="100%" stopColor={CHART_COLORS.violations} stopOpacity={0.45} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
             <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} className="fill-muted-foreground" />
             <YAxis
@@ -836,7 +852,7 @@ export function SenderConcentrationChart({
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={180}
+              width={isMobile ? 110 : 180}
               className="fill-muted-foreground"
             />
             <Tooltip
@@ -845,14 +861,14 @@ export function SenderConcentrationChart({
                 const d = payload[0].payload;
                 return (
                   <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-xl">
-                    <div className="font-semibold text-foreground">{d.sender}</div>
-                    <div className="text-foreground">Violations: <span className="font-mono">{d.violations}</span></div>
-                    <div className="text-foreground">Cumulative: <span className="font-mono">{d.cumulativePct}%</span></div>
+                    <div className="font-semibold text-card-foreground">{d.sender}</div>
+                    <div className="text-card-foreground">Violations: <span className="font-mono">{d.violations}</span></div>
+                    <div className="text-card-foreground">Cumulative: <span className="font-mono">{d.cumulativePct}%</span></div>
                   </div>
                 );
               }}
             />
-            <Bar dataKey="violations" fill={CHART_COLORS.violations} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="violations" fill="url(#senderBarGrad)" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
