@@ -3,12 +3,11 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 import type { Metadata } from "next";
 import { Breadcrumb } from "@/components/breadcrumb";
-import { headers } from "next/headers";
 import { LiveViolations, LiveSender, LiveSummary, RequestDeletionButton, CommentsSection, EvidenceTabs, ReportingCard, ReportThread, CaseVerdict } from "./client";
-import { env } from "@/lib/env";
 import LocalTime from "@/components/LocalTime";
 import Footer from "@/components/Footer";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { getCaseDetail, getCaseImageUrl, getCaseLandingUrl } from "@/server/cases/detail";
 import { isBotSubmitted } from "@/lib/badge-helpers";
 type CaseItem = {
   id: string;
@@ -73,15 +72,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       .limit(1);
 
     let item = (rows?.[0] as Row | undefined) || null;
-    // Fallback: try internal API with site URL if direct DB read didn't return
+    // Fallback: direct lookup without the public filter (previously an HTTP call to our own API)
     if (!item) {
       try {
-        const base = env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "";
-        const apiRes = await fetch(`${base}/api/cases/${id}`, { cache: "no-store" });
-        if (apiRes.ok) {
-          const json = (await apiRes.json()) as { item?: Row | null };
-          if (json?.item) item = json.item as Row;
-        }
+        const detail = await getCaseDetail(id);
+        if (detail?.item) item = detail.item as unknown as Row;
       } catch {}
     }
     if (!item) {
@@ -171,26 +166,22 @@ export default async function CaseDetailPage({
 }) {
   const { id } = await params;
   const { warning, pages } = await searchParams;
-  const hdrs = await headers();
-  const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost:3000";
-  const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const base = `${proto}://${host}`;
-  const res = await fetch(`${base}/api/cases/${id}`, { cache: "no-store" });
-  if (!res.ok) {
-    return <main className="mx-auto max-w-5xl p-6">Not found</main>;
-  }
-  const data = (await res.json()) as CaseData;
-  if (!data.item) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
+  // Read straight from the data layer. This page used to fetch its own
+  // /api/cases/[id], /image-url and /landing-url routes over HTTP, which
+  // cost three extra serverless invocations per render.
+  const [detail, imgData, landData] = await Promise.all([
+    getCaseDetail(id).catch(() => null),
+    getCaseImageUrl(id).catch(() => ({ url: null } as { url: string | null; mime?: string | null })),
+    getCaseLandingUrl(id).catch(() => ({ url: null, landingUrl: null, status: null } as { url: string | null; landingUrl: string | null; status: string | null })),
+  ]);
+  const data = detail as unknown as CaseData | null;
+  if (!data?.item) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
 
   const item = data.item;
   
   // Check for page limit warning
   const showPageLimitWarning = warning === "page_limit" && pages;
   const totalPages = pages ? parseInt(pages, 10) : 0;
-  const imgRes = await fetch(`${base}/api/cases/${id}/image-url`, { cache: "no-store" });
-  const imgData = imgRes.ok ? await imgRes.json() : { url: null } as { url: string | null; mime?: string | null };
-  const landRes = await fetch(`${base}/api/cases/${id}/landing-url?ts=${Date.now()}`, { cache: "no-store" });
-  const landData = landRes.ok ? await landRes.json() : { url: null, landingUrl: null, status: null } as { url: string | null; landingUrl: string | null; status: string | null };
   const hasReport = (data as { hasReport?: boolean }).hasReport === true
     || (Array.isArray(data.reports) && data.reports.length > 0);
   const createdAtIso = item.created_at ?? null;
@@ -340,7 +331,7 @@ export default async function CaseDetailPage({
             {/* Summary */}
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl shadow-black/5 p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-3">AI Analysis Summary</h2>
-              <LiveSummary id={id} initialSummary={summaryInitial} initialStatus={item.processing_status ?? null} />
+              <LiveSummary id={id} initialSummary={summaryInitial} initialStatus={item.processing_status ?? null} initialViolationCount={(data.violations ?? []).length} />
             </div>
 
             {/* Violations */}

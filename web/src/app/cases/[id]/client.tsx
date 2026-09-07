@@ -10,6 +10,7 @@ import ReviewAnimation from "@/components/review-animation";
 import { LandingPageScanner } from "@/components/landing-page-scanner";
 import { EmailSuccessAnimation } from "@/components/email-success-animation";
 import { repairMojibake, normalizePunctuation } from "@/server/ingest/text-cleaner";
+import { fetchCaseSnapshot } from "@/lib/case-poll";
 
 function Tooltip({ label, children }: { label?: string; children: React.ReactNode }) {
   if (!label) return <>{children}</>;
@@ -34,12 +35,12 @@ export function LiveCaseText({ id, initialText, initialStatus }: Props) {
   const [status, setStatus] = useState<string | null | undefined>(initialStatus);
 
   useEffect(() => {
+    // Nothing to wait for on a finished case - skip polling entirely.
+    if (initialStatus === "done" && initialText) return;
     let cancelled = false;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const item = data.item as { raw_text: string | null; processing_status?: string | null };
         if (!cancelled) {
           const raw = item?.raw_text ?? null;
@@ -53,11 +54,16 @@ export function LiveCaseText({ id, initialText, initialStatus }: Props) {
         }
       } catch {}
     }, 2000);
+    const timeout = setTimeout(() => {
+      cancelled = true;
+      clearInterval(interval);
+    }, 120000);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      clearTimeout(timeout);
     };
-  }, [id, initialStatus]);
+  }, [id, initialStatus, initialText]);
 
   return (
     <div>
@@ -116,9 +122,7 @@ export function LiveViolations({ id, initialViolations, initialStatus, initialAi
 
     intervalRef.current = window.setInterval(async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const item = data.item as { processing_status?: string | null; ai_confidence?: number | string | null };
         const vios = (data.violations ?? []) as Array<Violation>;
         setViolations(vios);
@@ -133,9 +137,11 @@ export function LiveViolations({ id, initialViolations, initialStatus, initialAi
   }, [id, stopPolling]);
 
   useEffect(() => {
+    // A finished case never changes - don't burn 60 requests waiting for it.
+    if (initialStatus === "done") return;
     startPolling();
     return () => stopPolling();
-  }, [id, startPolling, stopPolling]);
+  }, [id, initialStatus, startPolling, stopPolling]);
 
   useEffect(() => {
     const onReclassify = (e: Event) => {
@@ -308,9 +314,7 @@ export function LiveSender({ id, initialSenderName, initialSenderId }: LiveSende
     let cancelled = false;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const item = data.item as { sender_name: string | null; sender_id: string | null; processing_status?: string | null } | null;
         if (!cancelled && item) {
           if (item.sender_name) {
@@ -357,20 +361,23 @@ type LiveSummaryProps = {
   id: string;
   initialSummary: string | null;
   initialStatus: string | null | undefined;
+  initialViolationCount?: number;
 };
 
-export function LiveSummary({ id, initialSummary, initialStatus }: LiveSummaryProps) {
+export function LiveSummary({ id, initialSummary, initialStatus, initialViolationCount }: LiveSummaryProps) {
   const [summary, setSummary] = useState<string | null>(initialSummary);
   const [status, setStatus] = useState<string | null | undefined>(initialStatus);
-  const [hasNoViolations, setHasNoViolations] = useState<boolean>(false);
+  const [hasNoViolations, setHasNoViolations] = useState<boolean>(
+    initialStatus === "done" && initialViolationCount === 0
+  );
 
   useEffect(() => {
+    // A finished case already rendered its final summary on the server.
+    if (initialStatus === "done") return;
     let cancelled = false;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const item = data.item as { processing_status?: string | null } | null;
         const vios = (data.violations ?? []) as Array<{ description?: string | null; severity?: number | null; confidence?: number | string | null }>;
         const serverSummary: string | null | undefined = (data as { summary?: string | null }).summary;
@@ -432,9 +439,7 @@ export function ReportThread({ id, verdict }: ReportThreadProps) {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         if (!cancelled) {
           const reportsData = (data.reports || []) as Array<Report>;
           setReports(reportsData.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()));
@@ -1019,9 +1024,7 @@ export function ReportingCard({ id, existingLandingUrl = null, processingStatus 
     let cancelled = false;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const item = data.item as { processing_status?: string | null; landing_url?: string | null } | null;
         if (!cancelled && item?.processing_status) {
           setStatus(item.processing_status);
@@ -1213,9 +1216,7 @@ export function ReportingCard({ id, existingLandingUrl = null, processingStatus 
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(`/api/cases/${id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
         const vios = ((data.violations || []) as Array<{ code: string; title: string; description?: string | null; actblue_verified?: boolean | null }>).filter(
           (v) => !(v.code === "AB008" && v.actblue_verified === true)
         );

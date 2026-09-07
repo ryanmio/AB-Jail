@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
 
+// Public aggregate data - let the Vercel CDN serve repeat hits so the function
+// isn't invoked for every visitor/crawler.
+const CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300";
+
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const recentLimit = Math.min(Number(searchParams.get("recent")) || 5, 10);
@@ -27,7 +32,9 @@ export async function GET(req: NextRequest) {
     }
 
     // data is already a JSON object with recent_cases, worst_offenders, and recent_reports
-    return NextResponse.json(data || { recent_cases: [], worst_offenders: [], recent_reports: [] });
+    return NextResponse.json(data || { recent_cases: [], worst_offenders: [], recent_reports: [] }, {
+      headers: { "Cache-Control": CACHE_CONTROL },
+    });
   } catch (err) {
     console.error("/api/homepage-stats unexpected error:", err);
     return NextResponse.json(

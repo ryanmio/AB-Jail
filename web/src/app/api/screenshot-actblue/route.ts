@@ -72,6 +72,13 @@ export async function POST(req: NextRequest) {
   const timeoutMs = 15000;
   let screenshotBuf: Buffer | null = null;
   let browser: any = null;
+  // Set when the deadline fires. If that happens while puppeteer.launch() is
+  // still in flight, `browser` is null so the catch block below can't close
+  // it; takeShot checks this flag right after launch and closes it itself.
+  // Without this the chromium process kept running (and burning CPU) after
+  // the function had already responded.
+  let abandoned = false;
+  let step: "launch" | "navigate" | "screenshot" | "upload" | "unknown" = "launch";
   async function takeShot(): Promise<Buffer> {
     const chromium: any = await getChromium();
     const puppeteer: any = await getPuppeteerCore();
@@ -103,6 +110,10 @@ export async function POST(req: NextRequest) {
         headless: true,
       });
     }
+    if (abandoned) {
+      try { await browser.close(); } catch {}
+      throw new Error("timeout");
+    }
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(timeoutMs);
     try {
@@ -131,11 +142,16 @@ export async function POST(req: NextRequest) {
     const buf = (await page.screenshot({ fullPage: true, type: "png" })) as Buffer;
     return buf;
   }
-  let step: "launch" | "navigate" | "screenshot" | "upload" | "unknown" = "launch";
+  let deadline: ReturnType<typeof setTimeout> | null = null;
   try {
     screenshotBuf = await Promise.race([
       takeShot(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), timeoutMs)),
+      new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => {
+          abandoned = true;
+          reject(new Error("timeout"));
+        }, timeoutMs);
+      }),
     ]) as Buffer;
   } catch {
     // Mark failure and return, but keep the comment we inserted earlier
@@ -143,11 +159,13 @@ export async function POST(req: NextRequest) {
       .from("submissions")
       .update({ landing_render_status: "failed", landing_rendered_at: new Date().toISOString() })
       .eq("id", caseId);
+    // Kill chromium now rather than letting it finish an unwanted render.
     if (browser) {
       try { await browser.close(); } catch {}
     }
-    
     return NextResponse.json({ ok: false, error: "screenshot_failed", step }, { status: 502 });
+  } finally {
+    if (deadline) clearTimeout(deadline);
   }
 
   try {
