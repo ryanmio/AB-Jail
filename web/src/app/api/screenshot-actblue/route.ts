@@ -143,6 +143,8 @@ export async function POST(req: NextRequest) {
     return buf;
   }
   let deadline: ReturnType<typeof setTimeout> | null = null;
+  const startedAt = Date.now();
+  const targetHost = (() => { try { return new URL(url).hostname; } catch { return null; } })();
   try {
     screenshotBuf = await Promise.race([
       takeShot(),
@@ -153,7 +155,15 @@ export async function POST(req: NextRequest) {
         }, timeoutMs);
       }),
     ]) as Buffer;
-  } catch {
+  } catch (e) {
+    // Structured failure record so the Vercel logs answer "which step, how long, which host".
+    console.error("/api/screenshot-actblue:failed", {
+      caseId,
+      step,
+      elapsedMs: Date.now() - startedAt,
+      host: targetHost,
+      error: e instanceof Error ? e.message : String(e),
+    });
     // Mark failure and return, but keep the comment we inserted earlier
     await supabase
       .from("submissions")
@@ -222,8 +232,16 @@ export async function POST(req: NextRequest) {
       }).catch(() => undefined);
     } catch {}
 
+    console.log("/api/screenshot-actblue:ok", { caseId, elapsedMs: Date.now() - startedAt, host: targetHost, bytes: screenshotBuf?.byteLength ?? 0 });
     return NextResponse.json({ ok: true, screenshotUrl: publicUrl });
-  } catch {
+  } catch (e) {
+    console.error("/api/screenshot-actblue:failed", {
+      caseId,
+      step,
+      elapsedMs: Date.now() - startedAt,
+      host: targetHost,
+      error: e instanceof Error ? e.message : String(e),
+    });
     await supabase
       .from("submissions")
       .update({ landing_render_status: "failed", landing_rendered_at: new Date().toISOString() })
