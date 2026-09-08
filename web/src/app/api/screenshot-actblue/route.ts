@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
+// Whole route is bounded at ~15s of capture plus an upload; anything longer is a hang.
+export const maxDuration = 60;
 import { randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { getSupabaseServer } from "@/lib/supabase-server";
@@ -43,6 +45,23 @@ function resolveLocalChromePath(): string | null {
 }
 
 type Body = { caseId?: string; url?: string };
+
+// browser.close() can hang indefinitely on serverless chromium, which held the
+// HTTP response open after the screenshot had already been saved. Give close a
+// short window, then kill the process outright so the response goes out.
+async function closeBrowser(browser: any): Promise<void> {
+  if (!browser) return;
+  const proc = typeof browser.process === "function" ? browser.process() : null;
+  try {
+    await Promise.race([
+      browser.close(),
+      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+    ]);
+  } catch {}
+  try {
+    if (proc && proc.exitCode === null && !proc.killed) proc.kill("SIGKILL");
+  } catch {}
+}
 
 export async function POST(req: NextRequest) {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -111,7 +130,7 @@ export async function POST(req: NextRequest) {
       });
     }
     if (abandoned) {
-      try { await browser.close(); } catch {}
+      await closeBrowser(browser);
       throw new Error("timeout");
     }
     const page = await browser.newPage();
@@ -143,6 +162,8 @@ export async function POST(req: NextRequest) {
     return buf;
   }
   let deadline: ReturnType<typeof setTimeout> | null = null;
+  const startedAt = Date.now();
+  const targetHost = (() => { try { return new URL(url).hostname; } catch { return null; } })();
   try {
     screenshotBuf = await Promise.race([
       takeShot(),
@@ -153,16 +174,22 @@ export async function POST(req: NextRequest) {
         }, timeoutMs);
       }),
     ]) as Buffer;
-  } catch {
+  } catch (e) {
+    // Structured failure record so the Vercel logs answer "which step, how long, which host".
+    console.error("/api/screenshot-actblue:failed", {
+      caseId,
+      step,
+      elapsedMs: Date.now() - startedAt,
+      host: targetHost,
+      error: e instanceof Error ? e.message : String(e),
+    });
     // Mark failure and return, but keep the comment we inserted earlier
     await supabase
       .from("submissions")
       .update({ landing_render_status: "failed", landing_rendered_at: new Date().toISOString() })
       .eq("id", caseId);
     // Kill chromium now rather than letting it finish an unwanted render.
-    if (browser) {
-      try { await browser.close(); } catch {}
-    }
+    await closeBrowser(browser);
     return NextResponse.json({ ok: false, error: "screenshot_failed", step }, { status: 502 });
   } finally {
     if (deadline) clearTimeout(deadline);
@@ -222,15 +249,23 @@ export async function POST(req: NextRequest) {
       }).catch(() => undefined);
     } catch {}
 
+    console.log("/api/screenshot-actblue:ok", { caseId, elapsedMs: Date.now() - startedAt, host: targetHost, bytes: screenshotBuf?.byteLength ?? 0 });
     return NextResponse.json({ ok: true, screenshotUrl: publicUrl });
-  } catch {
+  } catch (e) {
+    console.error("/api/screenshot-actblue:failed", {
+      caseId,
+      step,
+      elapsedMs: Date.now() - startedAt,
+      host: targetHost,
+      error: e instanceof Error ? e.message : String(e),
+    });
     await supabase
       .from("submissions")
       .update({ landing_render_status: "failed", landing_rendered_at: new Date().toISOString() })
       .eq("id", caseId);
     return NextResponse.json({ ok: false, error: "upload_failed" }, { status: 500 });
   } finally {
-    try { if (browser) await browser.close(); } catch {}
+    await closeBrowser(browser);
   }
 }
 
