@@ -24,9 +24,11 @@ export type CaseDetail = {
 
 // Columns that must never leave the server. They hold the one-time report
 // token, the unredacted original email HTML (which still contains honeytrap
-// addresses and tracking IDs), and uploader identifiers.
+// addresses and tracking IDs), uploader identifiers, and the raw From line
+// (historically the SMTP envelope/bounce address, which encodes the recipient).
 export const SENSITIVE_SUBMISSION_COLUMNS = [
   "email_body_original",
+  "email_from",
   "submission_token",
   "token_used_at",
   "uploader_fingerprint",
