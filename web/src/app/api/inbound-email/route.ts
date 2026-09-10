@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
     });
     
     const contentType = req.headers.get("content-type") || "";
-    let sender = "";
+    let sender = ""; // SMTP envelope sender (MAIL FROM): the forwarding mailbox for Gmail forwards
+    let fromHeader = ""; // The message's From: header: the organization that actually sent it
     let subject = "";
     let bodyPlain = "";
     let bodyHtml = "";
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
       sender = params.get("sender") || params.get("from") || params.get("From") || "";
+      fromHeader = params.get("from") || params.get("From") || "";
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
       // Use formData for multipart (handles binary attachments correctly)
       const form = await req.formData();
       sender = String(form.get("sender") || form.get("from") || form.get("From") || "");
+      fromHeader = String(form.get("from") || form.get("From") || "");
       subject = String(form.get("subject") || form.get("Subject") || "");
       bodyPlain = String(form.get("body-plain") || form.get("stripped-text") || form.get("text") || "");
       bodyHtml = String(form.get("body-html") || form.get("stripped-html") || form.get("html") || "");
@@ -71,6 +74,7 @@ export async function POST(req: NextRequest) {
     } else if (contentType.includes("application/json")) {
       const json = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       sender = String(json?.sender || json?.from || json?.From || "");
+      fromHeader = String(json?.from || json?.From || "");
       subject = String(json?.subject || json?.Subject || "");
       bodyPlain = String(json?.["body-plain"] || json?.["stripped-text"] || json?.text || "");
       bodyHtml = String(json?.["body-html"] || json?.["stripped-html"] || json?.html || "");
@@ -82,6 +86,7 @@ export async function POST(req: NextRequest) {
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
       sender = params.get("sender") || params.get("from") || params.get("From") || "";
+      fromHeader = params.get("from") || params.get("From") || "";
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
@@ -120,10 +125,13 @@ export async function POST(req: NextRequest) {
       originalFromLine = extractOriginalFromLine(htmlAsText);
     }
 
-    // Fallback: Only if NOT a forwarded email, use the envelope sender
-    // For forwarded emails, we must not set email_from to the forwarder's address
-    if (!originalFromLine && sender && !isForwarded) {
-      originalFromLine = sender;
+    // Fallback for mail delivered straight to a honeytrap: use the message's
+    // From: header, never the envelope sender. Gmail auto-forward rewrites the
+    // envelope (MAIL FROM) to the honeytrap mailbox, and ESP bounce addresses
+    // embed the recipient, so the old envelope fallback put honeytrap addresses
+    // into public email_from / sender_id.
+    if (!originalFromLine && !isForwarded && fromHeader) {
+      originalFromLine = fromHeader;
     }
     
     // Strip only the forwarded separator line(s), keep From/Date/Subject/To metadata intact
@@ -196,11 +204,23 @@ export async function POST(req: NextRequest) {
     }
     
     // Attempt to detect original sender email (for sender_id): prefer parsed from originalFromLine, then from body, else envelope
-    const detectedSender =
+    let detectedSender: string | null =
       parseEmailAddress(originalFromLine || undefined) ||
       extractOriginalSender(rawText) ||
-      parseEmailAddress(sender) ||
-      sender;
+      null;
+
+    // Belt and braces: a honeytrap or forwarder address must never become the
+    // public sender identity, whichever path produced it.
+    const isProtectedAddress = (addr: string | null | undefined) => {
+      const a = (addr || "").toLowerCase();
+      if (!a) return false;
+      if (honeytrapEmails.some(h => a.includes(h.toLowerCase()))) return true;
+      // For forwards the envelope sender is the forwarder.
+      const envelope = (parseEmailAddress(sender) || sender || "").toLowerCase();
+      return isForwarded && !!envelope && a.includes(envelope);
+    };
+    if (isProtectedAddress(detectedSender)) detectedSender = null;
+    if (isProtectedAddress(originalFromLine)) originalFromLine = null;
 
     // Skip ingest for known non-ActBlue senders and any addresses in INGEST_SUPPRESS_LIST
     const senderEmail = (detectedSender || sender || "").toLowerCase();
@@ -244,13 +264,23 @@ export async function POST(req: NextRequest) {
 
     // Insert into Supabase (with duplicate detection inside ingestTextSubmission)
     // Use cleaned text for heuristics and AI, but store raw text for reference
+    // Mask every address in the stored plain text except the detected sender's.
+    // Forwarded mail keeps its quoted To:/Cc: lines, which name the forwarder.
+    const keepAddress = (detectedSender || "").toLowerCase();
+    const maskAddresses = (text: string) =>
+      text.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => {
+        if (keepAddress && m.toLowerCase() === keepAddress) return m;
+        const tld = m.slice(m.lastIndexOf(".") + 1);
+        return `*******@*******.${tld}`;
+      });
+
     const result = await ingestTextSubmission({
-      text: cleanedText || "",
-      rawText: rawText || "", // Store original for audit
+      text: maskAddresses(cleanedText || ""),
+      rawText: maskAddresses(rawText || ""), // Store original for audit
       senderId: detectedSender || null,
       messageType: "email",
       imageUrlPlaceholder: "email://no-image",
-      emailSubject: subject || null,
+      emailSubject: subject ? maskAddresses(subject) : null,
       emailBody: sanitizedHtml || null, // Sanitized HTML (no tracking/unsubscribe links) for display
       emailBodyOriginal: originalHtml || null, // Original HTML for URL extraction
       emailFrom: originalFromLine || null, // Full original "From:" line (prefer original content; not the forwarder)
