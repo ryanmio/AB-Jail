@@ -762,7 +762,6 @@ type ReportData = {
     id: string;
     case_id: string;
     to_email: string;
-    cc_email: string | null;
     subject: string;
     body: string;
     screenshot_url: string | null;

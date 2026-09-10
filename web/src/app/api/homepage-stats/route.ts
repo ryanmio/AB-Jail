@@ -31,7 +31,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // data is already a JSON object with recent_cases, worst_offenders, and recent_reports
+    // data is already a JSON object with recent_cases, worst_offenders, and recent_reports.
+    // The RPC still emits report.cc_email (the reporter's personal address); never send it to the client.
+    if (data && Array.isArray(data.recent_reports)) {
+      for (const entry of data.recent_reports) {
+        if (entry?.report && typeof entry.report === "object") delete entry.report.cc_email;
+      }
+    }
     return NextResponse.json(data || { recent_cases: [], worst_offenders: [], recent_reports: [] }, {
       headers: { "Cache-Control": CACHE_CONTROL },
     });

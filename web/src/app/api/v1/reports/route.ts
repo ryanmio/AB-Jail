@@ -9,7 +9,7 @@ import {
 
 // html_body omitted from list to reduce response size; available via /submissions/:id detail endpoint
 const SELECTED_FIELDS =
-  "id, case_id, to_email, cc_email, subject, body, landing_url, status, created_at";
+  "id, case_id, to_email, subject, body, landing_url, status, created_at";
 
 export async function GET(req: NextRequest) {
   const auth = await authenticateApiKey(req);

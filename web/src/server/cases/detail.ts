@@ -61,7 +61,7 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
       .limit(10),
     supabase
       .from("reports")
-      .select("id, case_id, to_email, cc_email, subject, body, screenshot_url, landing_url, status, created_at")
+      .select("id, case_id, to_email, subject, body, screenshot_url, landing_url, status, created_at")
       .eq("case_id", id)
       .order("created_at", { ascending: true }),
     // Secondary signal for hasReport that does not rely on reports table access (RLS-safe)
