@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { internalHeaders } from "@/lib/internal-auth";
-import { randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { cleanTextForAI } from "@/server/ingest/text-cleaner";
 import { sanitizeEmailHtml } from "@/server/ingest/html-sanitizer";
@@ -11,6 +11,27 @@ const SKIP_SENDER_DOMAINS: string[] = [
   "bounce.alerts.savethechildren.org",
   "savethechildren.org",
 ];
+
+type MailgunSignature = { timestamp: string; token: string; signature: string };
+
+// Mailgun signs every webhook with HMAC-SHA256(signing_key, timestamp + token).
+// https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/#securing-webhooks
+const MAILGUN_MAX_SKEW_SECONDS = 15 * 60;
+
+function verifyMailgunSignature(sig: MailgunSignature): boolean {
+  const key = env.MAILGUN_WEBHOOK_SIGNING_KEY;
+  if (!key) {
+    console.error("/api/inbound-email: MAILGUN_WEBHOOK_SIGNING_KEY not set; rejecting");
+    return false;
+  }
+  if (!sig.timestamp || !sig.token || !sig.signature) return false;
+  const ts = Number(sig.timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > MAILGUN_MAX_SKEW_SECONDS) return false;
+  const expected = createHmac("sha256", key).update(sig.timestamp + sig.token).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig.signature.toLowerCase());
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 // Mailgun sends POST with application/x-www-form-urlencoded by default
 export async function POST(req: NextRequest) {
@@ -25,6 +46,7 @@ export async function POST(req: NextRequest) {
     let bodyPlain = "";
     let bodyHtml = "";
     let messageHeaders = ""; // Mailgun provides original email headers as JSON array
+    let sig: MailgunSignature = { timestamp: "", token: "", signature: "" };
 
     // Parse Mailgun webhook payload
     if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -36,6 +58,7 @@ export async function POST(req: NextRequest) {
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
       messageHeaders = params.get("message-headers") || "";
+      sig = { timestamp: params.get("timestamp") || "", token: params.get("token") || "", signature: params.get("signature") || "" };
     } else if (contentType.includes("multipart/form-data")) {
       // Use formData for multipart (handles binary attachments correctly)
       const form = await req.formData();
@@ -44,6 +67,7 @@ export async function POST(req: NextRequest) {
       bodyPlain = String(form.get("body-plain") || form.get("stripped-text") || form.get("text") || "");
       bodyHtml = String(form.get("body-html") || form.get("stripped-html") || form.get("html") || "");
       messageHeaders = String(form.get("message-headers") || "");
+      sig = { timestamp: String(form.get("timestamp") || ""), token: String(form.get("token") || ""), signature: String(form.get("signature") || "") };
     } else if (contentType.includes("application/json")) {
       const json = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       sender = String(json?.sender || json?.from || json?.From || "");
@@ -51,6 +75,8 @@ export async function POST(req: NextRequest) {
       bodyPlain = String(json?.["body-plain"] || json?.["stripped-text"] || json?.text || "");
       bodyHtml = String(json?.["body-html"] || json?.["stripped-html"] || json?.html || "");
       messageHeaders = String(json?.["message-headers"] || "");
+      const nested = (json?.signature && typeof json.signature === "object" ? json.signature : json) as Record<string, unknown>;
+      sig = { timestamp: String(nested?.timestamp || ""), token: String(nested?.token || ""), signature: String(nested?.signature || "") };
     } else {
       // Best-effort: try reading as text and parsing as URLSearchParams
       const rawBody = await req.text();
@@ -60,6 +86,16 @@ export async function POST(req: NextRequest) {
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
       messageHeaders = params.get("message-headers") || "";
+      sig = { timestamp: params.get("timestamp") || "", token: params.get("token") || "", signature: params.get("signature") || "" };
+    }
+
+    // Reject anything Mailgun did not sign. Without this, anyone can create
+    // public cases, trigger the AI pipeline and send email from our domain.
+    if (!verifyMailgunSignature(sig)) {
+      console.warn("/api/inbound-email:rejected invalid_signature", {
+        hasTimestamp: !!sig.timestamp, hasToken: !!sig.token, hasSignature: !!sig.signature,
+      });
+      return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
     }
 
     // Store envelope sender (forwarder's email) for reply feature
