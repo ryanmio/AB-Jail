@@ -269,7 +269,7 @@ export default async function CaseDetailPage({
                     messageType: item?.message_type,
                     imageUrl: item?.image_url,
                     senderId: item?.sender_id,
-                    forwarderEmail: item?.forwarder_email,
+                    hasForwarder: !!item?.forwarder_email,
                   }) ? 'Bot Captured' : 'User Submitted'}
                 </span>
                 {hasReport && (

@@ -6,7 +6,8 @@ export interface SubmissionBadgeInfo {
   messageType?: string | null;
   imageUrl?: string | null;
   senderId?: string | null;
-  forwarderEmail?: string | null;
+  /** True when a real person forwarded the email (forwarder_email is set). Never expose the address itself. */
+  hasForwarder?: boolean | null;
 }
 
 /**
@@ -15,7 +16,7 @@ export interface SubmissionBadgeInfo {
  * Bot captured: Direct ingestion from Twilio (SMS with sender_id) or email bot (email without forwarder)
  * User submitted: Manual screenshot upload, forwarded emails, or unknown types
  * 
- * @param submission - Submission data with messageType, imageUrl, senderId, forwarderEmail
+ * @param submission - Submission data with messageType, imageUrl, senderId, hasForwarder
  * @returns true if bot-captured, false if user-submitted
  */
 export function isBotSubmitted(submission: SubmissionBadgeInfo): boolean {
@@ -33,7 +34,7 @@ export function isBotSubmitted(submission: SubmissionBadgeInfo): boolean {
   // - Email without forwarder = sent directly to bot email
   return (
     (messageType === 'sms' && !!submission.senderId) ||
-    (messageType === 'email' && !submission.forwarderEmail)
+    (messageType === 'email' && !submission.hasForwarder)
   );
 }
 

@@ -20,7 +20,7 @@ type SubmissionRow = {
   rawText: string | null;
   issues: Array<{ code: string; title: string; actblue_verified?: boolean | null }>;
   messageType?: string | null;
-  forwarderEmail?: string | null;
+  hasForwarder?: boolean;
   imageUrl?: string | null;
   hasReport?: boolean;
 };
@@ -153,8 +153,7 @@ async function loadCases(page = 1, limit = 20, q = "", codes: string[] = [], sen
       issues?: Array<{ code: string; title: string }>;
       message_type?: string | null;
       messageType?: string | null;
-      forwarder_email?: string | null;
-      forwarderEmail?: string | null;
+      hasForwarder?: boolean;
       image_url?: string | null;
       imageUrl?: string | null;
       hasReport?: boolean;
@@ -170,7 +169,7 @@ async function loadCases(page = 1, limit = 20, q = "", codes: string[] = [], sen
         ? r.issues.filter((v) => typeof v.code === "string" && v.code.trim()).slice(0, 3)
         : [],
       messageType: r.message_type || r.messageType || null,
-      forwarderEmail: r.forwarder_email || r.forwarderEmail || null,
+      hasForwarder: !!r.hasForwarder,
       imageUrl: r.image_url || r.imageUrl || null,
       hasReport: r.hasReport || false,
     }));
@@ -611,7 +610,7 @@ export default async function CasesPage({ searchParams }: { searchParams?: Promi
                                 messageType: it.messageType,
                                 imageUrl: it.imageUrl,
                                 senderId: it.senderId,
-                                forwarderEmail: it.forwarderEmail,
+                                hasForwarder: it.hasForwarder,
                               });
                               return (
                                 <>
