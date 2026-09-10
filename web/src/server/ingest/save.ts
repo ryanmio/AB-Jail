@@ -130,6 +130,12 @@ function normalizeToBase(url: string): string | null {
 
 // Follow redirects to resolve tracking URLs (async helper)
 // Returns { finalUrl, hops, status } where hops = array of domain transitions
+// A generic browser UA. Senders' click logs see automated link checks from
+// mail security scanners on every recipient's links; a UA naming this site
+// would single ours out and identify the recipient as one of ours.
+const LINK_FOLLOW_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+
 async function followRedirect(
   url: string, 
   maxHops = 5
@@ -142,7 +148,7 @@ async function followRedirect(
       let res = await fetch(current, { 
         method: "HEAD", 
         redirect: "manual",
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ABJail/1.0)" },
+        headers: { "User-Agent": LINK_FOLLOW_USER_AGENT },
         signal: AbortSignal.timeout(3000), // 3s timeout per hop
       });
       
@@ -158,7 +164,7 @@ async function followRedirect(
         res = await fetch(current, {
           method: "GET",
           redirect: "manual",
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; ABJail/1.0)" },
+          headers: { "User-Agent": LINK_FOLLOW_USER_AGENT },
           signal: AbortSignal.timeout(3000),
         });
       }
