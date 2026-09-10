@@ -557,14 +557,15 @@ export default function EvaluationPage() {
                               </div>
                             )}
                             <div className="w-full bg-card rounded-sm border border-border overflow-hidden">
-                            <div className="max-h-128 overflow-auto flex justify-center">
-                              <div className="scale-[0.6] origin-top" style={{ width: "calc(100% / 0.6)" }}>
-                                <div 
-                                  className="prose prose-sm max-w-none text-foreground text-xs prose-headings:text-sm"
-                                  dangerouslySetInnerHTML={{ __html: currentSample.emailBody }}
-                                />
-                              </div>
-                            </div>
+                              {/* Email HTML is attacker-controlled input; render it in a fully
+                                  sandboxed iframe (no scripts, no same-origin) rather than inline. */}
+                              <iframe
+                                srcDoc={`<style>body { margin: 16px; font-family: system-ui, sans-serif; font-size: 13px; }</style>${currentSample.emailBody}`}
+                                title="Email preview"
+                                className="w-full border-0 bg-white"
+                                style={{ height: "32rem", zoom: 0.8 }}
+                                sandbox=""
+                              />
                             </div>
                           </div>
                         ) : (
