@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { detectPII } from "@/server/ai/redact-pii";
 
@@ -7,6 +8,9 @@ import { detectPII } from "@/server/ai/redact-pii";
  * Runs as a separate step after classification/sender extraction.
  */
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     const { submissionId } = body;

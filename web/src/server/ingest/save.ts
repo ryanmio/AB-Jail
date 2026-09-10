@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { internalHeaders } from "@/lib/internal-auth";
 import { env } from "@/lib/env";
 import { buildDedupeFields, findDuplicateCase } from "./dedupe";
 
@@ -519,7 +520,7 @@ export async function triggerPipelines(submissionId: string) {
     // Fire all requests in parallel and await them (serverless needs this)
     const classifyPromise = fetch(`${base}/api/classify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");
@@ -530,7 +531,7 @@ export async function triggerPipelines(submissionId: string) {
     
     const senderPromise = fetch(`${base}/api/sender`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");
@@ -541,7 +542,7 @@ export async function triggerPipelines(submissionId: string) {
     
     const redactPiiPromise = fetch(`${base}/api/redact-pii`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");

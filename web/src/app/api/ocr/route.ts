@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { internalHeaders } from "@/lib/internal-auth";
 export const runtime = "nodejs";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { env } from "@/lib/env";
@@ -303,7 +304,7 @@ export async function POST(req: NextRequest) {
     const senderUrl = `${base}/api/sender`;
     void fetch(classifyUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     })
       .then(async (res) => {
@@ -318,7 +319,7 @@ export async function POST(req: NextRequest) {
 
     void fetch(senderUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     })
       .then(async (res) => {

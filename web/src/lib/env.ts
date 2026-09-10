@@ -24,6 +24,11 @@ const EnvSchema = z.object({
 
   GITHUB_TOKEN: z.string().optional(),
 
+  // Shared secret for server-to-server calls to internal pipeline routes
+  INTERNAL_API_SECRET: z.string().optional(),
+  // Mailgun inbound webhook signing key (HTTP webhook signing key in Mailgun settings)
+  MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional(),
+
   // Honeytrap emails (comma-separated)
   HONEYTRAP_EMAILS: z.string().optional(),
   
@@ -69,6 +74,9 @@ export const env: AppEnv = EnvSchema.parse({
   DATA_REQUEST_EMAIL: process.env.DATA_REQUEST_EMAIL,
 
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+
+  INTERNAL_API_SECRET: process.env.INTERNAL_API_SECRET,
+  MAILGUN_WEBHOOK_SIGNING_KEY: process.env.MAILGUN_WEBHOOK_SIGNING_KEY,
 
   HONEYTRAP_EMAILS: process.env.HONEYTRAP_EMAILS,
   HONEYTRAP_IDS: process.env.HONEYTRAP_IDS,

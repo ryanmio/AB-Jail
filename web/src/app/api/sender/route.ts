@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { truncateForAI } from "@/server/ai/constants";
 
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   console.log("[/api/sender] start");
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "service_key_missing" }, { status: 400 });

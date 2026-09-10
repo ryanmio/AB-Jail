@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { getSupabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   const startTime = Date.now();
   console.log("/api/send-non-fundraising-notice:start", { timestamp: new Date().toISOString() });
   

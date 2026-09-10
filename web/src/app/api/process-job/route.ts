@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { triggerPipelines } from "@/server/ingest/save";
 
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json().catch(() => ({}));
     const submissionId = body?.submissionId as string | undefined;

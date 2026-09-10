@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { internalHeaders } from "@/lib/internal-auth";
 export const runtime = "nodejs";
 // Whole route is bounded at ~15s of capture plus an upload; anything longer is a hang.
 export const maxDuration = 60;
@@ -234,7 +235,7 @@ export async function POST(req: NextRequest) {
       const base = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
       void fetch(`${base}/api/classify`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...internalHeaders() },
         body: JSON.stringify({ submissionId: caseId, includeExistingComments: true }),
       }).catch(() => undefined);
     } catch {}
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
       const base = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
       void fetch(`${base}/api/sender`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...internalHeaders() },
         body: JSON.stringify({ submissionId: caseId }),
       }).catch(() => undefined);
     } catch {}

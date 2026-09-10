@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { internalHeaders } from "@/lib/internal-auth";
 import { randomBytes } from "crypto";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { cleanTextForAI } from "@/server/ingest/text-cleaner";
@@ -308,7 +309,7 @@ export async function POST(req: NextRequest) {
         // Await to ensure completion in serverless environment
         await fetch(`${base}/api/send-non-fundraising-notice`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...internalHeaders() },
           body: JSON.stringify({ submissionId: result.id }),
         }).then(async (r) => {
           const text = await r.text().catch(() => "");

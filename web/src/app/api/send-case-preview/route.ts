@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { getSupabaseServer } from "@/lib/supabase-server";
@@ -12,6 +13,9 @@ function parseSupabaseUrl(u: string | null | undefined) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   const startTime = Date.now();
   console.log("/api/send-case-preview:start", { timestamp: new Date().toISOString() });
   
