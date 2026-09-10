@@ -9,6 +9,9 @@ export async function GET(
   try {
     const detail = await getCaseDetail(id);
     if (!detail) return NextResponse.json({ item: null, violations: [] }, { status: 404 });
+    // forwarder_email is the submitting user's address; the server page needs it
+    // for the bot/user badge but it has no business in the public JSON response.
+    if (detail.item) delete detail.item.forwarder_email;
     return NextResponse.json(detail);
   } catch (err) {
     console.error("/api/cases/[id] supabase error", err);

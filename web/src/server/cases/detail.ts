@@ -22,6 +22,22 @@ export type CaseDetail = {
   hasReport: boolean;
 };
 
+// Columns that must never leave the server. They hold the one-time report
+// token, the unredacted original email HTML (which still contains honeytrap
+// addresses and tracking IDs), and uploader identifiers.
+export const SENSITIVE_SUBMISSION_COLUMNS = [
+  "email_body_original",
+  "submission_token",
+  "token_used_at",
+  "uploader_fingerprint",
+  "preview_email_status",
+] as const;
+
+export function stripSensitiveSubmissionColumns<T extends Record<string, unknown>>(row: T): T {
+  for (const key of SENSITIVE_SUBMISSION_COLUMNS) delete row[key];
+  return row;
+}
+
 export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
   const supabase = getSupabaseServer();
   const { data: items, error } = await supabase
@@ -30,7 +46,7 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
     .eq("id", id)
     .limit(1);
   if (error) throw error;
-  const item = items?.[0] || null;
+  const item = items?.[0] ? stripSensitiveSubmissionColumns(items[0] as Record<string, unknown>) : null;
   if (!item) return null;
 
   // Independent lookups; run them concurrently.
