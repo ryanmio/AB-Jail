@@ -215,6 +215,9 @@ export async function POST(req: NextRequest) {
       const a = (addr || "").toLowerCase();
       if (!a) return false;
       if (honeytrapEmails.some(h => a.includes(h.toLowerCase()))) return true;
+      // ESP bounce/VERP addresses carry a per-message or per-recipient token
+      // that the sender can map back to the recipient mailbox. Never store them.
+      if (isBounceShapedAddress(a)) return true;
       // For forwards the envelope sender is the forwarder.
       const envelope = (parseEmailAddress(sender) || sender || "").toLowerCase();
       return isForwarded && !!envelope && a.includes(envelope);
@@ -490,6 +493,19 @@ function validateAndCleanFromLine(fromLine: string): string | null {
 // - Name <email@example.com>
 // - "Name" <email@example.com>
 // - email@example.com
+// True for addresses that look like ESP bounce / VERP return paths rather than
+// a human-readable From address: local parts containing + or =, bounce/return
+// keywords, or long opaque tokens.
+function isBounceShapedAddress(addr: string): boolean {
+  const a = addr.toLowerCase();
+  const email = a.match(/[a-z0-9._%+=-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || a;
+  const [local, domain = ""] = email.split("@");
+  if (/[+=]/.test(local)) return true;
+  if (/(bounce|bounces|return|verp|envelope)/.test(local) || /^(bounce|bounces|return|verp)\./.test(domain)) return true;
+  if (/[0-9]{6,}/.test(local) || /^[a-z0-9]{20,}$/.test(local)) return true;
+  return false;
+}
+
 function parseEmailAddress(input: string | null | undefined): string | null {
   if (!input) return null;
   const m = input.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
