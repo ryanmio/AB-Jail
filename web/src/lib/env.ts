@@ -28,8 +28,6 @@ const EnvSchema = z.object({
   INTERNAL_API_SECRET: z.string().optional(),
   // Mailgun inbound webhook signing key (HTTP webhook signing key in Mailgun settings)
   MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional(),
-  // Twilio auth token, used to verify X-Twilio-Signature on /api/inbound-sms
-  TWILIO_AUTH_TOKEN: z.string().optional(),
 
   // Honeytrap emails (comma-separated)
   HONEYTRAP_EMAILS: z.string().optional(),
@@ -79,7 +77,6 @@ export const env: AppEnv = EnvSchema.parse({
 
   INTERNAL_API_SECRET: process.env.INTERNAL_API_SECRET,
   MAILGUN_WEBHOOK_SIGNING_KEY: process.env.MAILGUN_WEBHOOK_SIGNING_KEY,
-  TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
 
   HONEYTRAP_EMAILS: process.env.HONEYTRAP_EMAILS,
   HONEYTRAP_IDS: process.env.HONEYTRAP_IDS,
