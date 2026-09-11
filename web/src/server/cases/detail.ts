@@ -46,7 +46,6 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
     .from("submissions")
     .select("*")
     .eq("id", id)
-    .eq("public", true)
     .limit(1);
   if (error) throw error;
   const item = items?.[0] ? stripSensitiveSubmissionColumns(items[0] as Record<string, unknown>) : null;
@@ -130,7 +129,7 @@ export type CaseImageUrl = { url: string | null; mime?: string | null; ext?: str
 
 export async function getCaseImageUrl(id: string): Promise<CaseImageUrl> {
   const supabase = getSupabaseServer();
-  const { data: items, error } = await supabase.from("submissions").select("image_url").eq("id", id).eq("public", true).limit(1);
+  const { data: items, error } = await supabase.from("submissions").select("image_url").eq("id", id).limit(1);
   if (error) throw error;
   const imageUrl = items?.[0]?.image_url as string | undefined;
   const parsed = parseSupabaseUrl(imageUrl);
@@ -165,7 +164,6 @@ export async function getCaseLandingUrl(id: string): Promise<CaseLandingUrl> {
     .from("submissions")
     .select("landing_screenshot_url, landing_url, landing_render_status")
     .eq("id", id)
-    .eq("public", true)
     .limit(1);
   if (error) throw error;
   const row = items?.[0] as { landing_screenshot_url?: string | null; landing_url?: string | null; landing_render_status?: string | null } | undefined;

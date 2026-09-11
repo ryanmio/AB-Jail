@@ -71,9 +71,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       .eq("public", true)
       .limit(1);
 
-    const item = (rows?.[0] as Row | undefined) || null;
-    // No fallback without the public filter: hidden cases (deletion requests,
-    // non-fundraising forwards) must 404 rather than remain reachable by link.
+    let item = (rows?.[0] as Row | undefined) || null;
+    // Fallback: direct lookup without the public filter (previously an HTTP call to our own API)
+    if (!item) {
+      try {
+        const detail = await getCaseDetail(id);
+        if (detail?.item) item = detail.item as unknown as Row;
+      } catch {}
+    }
     if (!item) {
       const title = "Case Not Found";
       const description = "This case could not be found";
