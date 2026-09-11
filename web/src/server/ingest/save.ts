@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { internalHeaders } from "@/lib/internal-auth";
 import { env } from "@/lib/env";
 import { buildDedupeFields, findDuplicateCase } from "./dedupe";
 
@@ -129,6 +130,10 @@ function normalizeToBase(url: string): string | null {
 
 // Follow redirects to resolve tracking URLs (async helper)
 // Returns { finalUrl, hops, status } where hops = array of domain transitions
+// Generic browser UA for link resolution.
+const LINK_FOLLOW_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+
 async function followRedirect(
   url: string, 
   maxHops = 5
@@ -141,7 +146,7 @@ async function followRedirect(
       let res = await fetch(current, { 
         method: "HEAD", 
         redirect: "manual",
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ABJail/1.0)" },
+        headers: { "User-Agent": LINK_FOLLOW_USER_AGENT },
         signal: AbortSignal.timeout(3000), // 3s timeout per hop
       });
       
@@ -157,7 +162,7 @@ async function followRedirect(
         res = await fetch(current, {
           method: "GET",
           redirect: "manual",
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; ABJail/1.0)" },
+          headers: { "User-Agent": LINK_FOLLOW_USER_AGENT },
           signal: AbortSignal.timeout(3000),
         });
       }
@@ -519,7 +524,7 @@ export async function triggerPipelines(submissionId: string) {
     // Fire all requests in parallel and await them (serverless needs this)
     const classifyPromise = fetch(`${base}/api/classify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");
@@ -530,7 +535,7 @@ export async function triggerPipelines(submissionId: string) {
     
     const senderPromise = fetch(`${base}/api/sender`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");
@@ -541,7 +546,7 @@ export async function triggerPipelines(submissionId: string) {
     
     const redactPiiPromise = fetch(`${base}/api/redact-pii`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     }).then(async (r) => {
       const text = await r.text().catch(() => "");

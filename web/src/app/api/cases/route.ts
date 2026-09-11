@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
       senderName: string | null;
       rawText: string | null;
       messageType: string | null;
-      forwarderEmail: string | null;
+      hasForwarder: boolean;
       imageUrl: string | null;
     }> = [];
     let total = 0;
@@ -203,7 +203,7 @@ export async function GET(req: NextRequest) {
           senderName: r.sender_name,
           rawText: r.raw_text,
           messageType: r.message_type,
-          forwarderEmail: r.forwarder_email,
+          hasForwarder: !!r.forwarder_email,
           imageUrl: r.image_url,
         }));
       } catch (codeFilterErr) {
@@ -230,7 +230,7 @@ export async function GET(req: NextRequest) {
       senderName: r.sender_name,
       rawText: r.raw_text,
       messageType: r.message_type,
-      forwarderEmail: r.forwarder_email,
+      hasForwarder: !!r.forwarder_email,
       imageUrl: r.image_url,
     }));
       total = typeof count === "number" ? count : items.length + offset;

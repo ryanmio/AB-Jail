@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { internalHeaders } from "@/lib/internal-auth";
+import { requireInternalSecret } from "@/lib/internal-auth";
 import { runClassification } from "@/server/ai/classify";
 import { getSupabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
+  const denied = requireInternalSecret(req);
+  if (denied) return denied;
+
   console.log("/api/classify:start");
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error("/api/classify:error service_key_missing");
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest) {
     const fetchStart = Date.now();
     const r = await fetch(`${base}/api/send-case-preview`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
     });
     const fetchElapsed = Date.now() - fetchStart;

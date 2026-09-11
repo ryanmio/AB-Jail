@@ -9,7 +9,6 @@ type ReportRow = {
   id: string;
   case_id: string;
   to_email: string;
-  cc_email: string | null;
   subject: string;
   body: string;
   screenshot_url: string | null;
@@ -129,7 +128,6 @@ export async function GET() {
           id: r.id,
           case_id: r.case_id,
           to_email: r.to_email,
-          cc_email: r.cc_email,
           subject: r.subject,
           body: r.body,
           screenshot_url: r.screenshot_url,

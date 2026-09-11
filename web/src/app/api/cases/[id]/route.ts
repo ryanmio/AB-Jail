@@ -9,6 +9,7 @@ export async function GET(
   try {
     const detail = await getCaseDetail(id);
     if (!detail) return NextResponse.json({ item: null, violations: [] }, { status: 404 });
+    if (detail.item) delete detail.item.forwarder_email;
     return NextResponse.json(detail);
   } catch (err) {
     console.error("/api/cases/[id] supabase error", err);

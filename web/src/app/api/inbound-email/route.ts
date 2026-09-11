@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
+import { internalHeaders } from "@/lib/internal-auth";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { cleanTextForAI } from "@/server/ingest/text-cleaner";
 import { sanitizeEmailHtml } from "@/server/ingest/html-sanitizer";
@@ -11,6 +12,27 @@ const SKIP_SENDER_DOMAINS: string[] = [
   "savethechildren.org",
 ];
 
+type MailgunSignature = { timestamp: string; token: string; signature: string };
+
+// Mailgun signs every webhook with HMAC-SHA256(signing_key, timestamp + token).
+// https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/#securing-webhooks
+const MAILGUN_MAX_SKEW_SECONDS = 15 * 60;
+
+function verifyMailgunSignature(sig: MailgunSignature): boolean {
+  const key = env.MAILGUN_WEBHOOK_SIGNING_KEY;
+  if (!key) {
+    console.error("/api/inbound-email: MAILGUN_WEBHOOK_SIGNING_KEY not set; rejecting");
+    return false;
+  }
+  if (!sig.timestamp || !sig.token || !sig.signature) return false;
+  const ts = Number(sig.timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > MAILGUN_MAX_SKEW_SECONDS) return false;
+  const expected = createHmac("sha256", key).update(sig.timestamp + sig.token).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig.signature.toLowerCase());
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 // Mailgun sends POST with application/x-www-form-urlencoded by default
 export async function POST(req: NextRequest) {
   try {
@@ -19,11 +41,13 @@ export async function POST(req: NextRequest) {
     });
     
     const contentType = req.headers.get("content-type") || "";
-    let sender = "";
+    let sender = ""; // SMTP envelope sender
+    let fromHeader = ""; // From: header
     let subject = "";
     let bodyPlain = "";
     let bodyHtml = "";
     let messageHeaders = ""; // Mailgun provides original email headers as JSON array
+    let sig: MailgunSignature = { timestamp: "", token: "", signature: "" };
 
     // Parse Mailgun webhook payload
     if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -31,34 +55,51 @@ export async function POST(req: NextRequest) {
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
       sender = params.get("sender") || params.get("from") || params.get("From") || "";
+      fromHeader = params.get("from") || params.get("From") || "";
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
       messageHeaders = params.get("message-headers") || "";
+      sig = { timestamp: params.get("timestamp") || "", token: params.get("token") || "", signature: params.get("signature") || "" };
     } else if (contentType.includes("multipart/form-data")) {
       // Use formData for multipart (handles binary attachments correctly)
       const form = await req.formData();
       sender = String(form.get("sender") || form.get("from") || form.get("From") || "");
+      fromHeader = String(form.get("from") || form.get("From") || "");
       subject = String(form.get("subject") || form.get("Subject") || "");
       bodyPlain = String(form.get("body-plain") || form.get("stripped-text") || form.get("text") || "");
       bodyHtml = String(form.get("body-html") || form.get("stripped-html") || form.get("html") || "");
       messageHeaders = String(form.get("message-headers") || "");
+      sig = { timestamp: String(form.get("timestamp") || ""), token: String(form.get("token") || ""), signature: String(form.get("signature") || "") };
     } else if (contentType.includes("application/json")) {
       const json = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       sender = String(json?.sender || json?.from || json?.From || "");
+      fromHeader = String(json?.from || json?.From || "");
       subject = String(json?.subject || json?.Subject || "");
       bodyPlain = String(json?.["body-plain"] || json?.["stripped-text"] || json?.text || "");
       bodyHtml = String(json?.["body-html"] || json?.["stripped-html"] || json?.html || "");
       messageHeaders = String(json?.["message-headers"] || "");
+      const nested = (json?.signature && typeof json.signature === "object" ? json.signature : json) as Record<string, unknown>;
+      sig = { timestamp: String(nested?.timestamp || ""), token: String(nested?.token || ""), signature: String(nested?.signature || "") };
     } else {
       // Best-effort: try reading as text and parsing as URLSearchParams
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
       sender = params.get("sender") || params.get("from") || params.get("From") || "";
+      fromHeader = params.get("from") || params.get("From") || "";
       subject = params.get("subject") || params.get("Subject") || "";
       bodyPlain = params.get("body-plain") || params.get("stripped-text") || params.get("text") || "";
       bodyHtml = params.get("body-html") || params.get("stripped-html") || params.get("html") || "";
       messageHeaders = params.get("message-headers") || "";
+      sig = { timestamp: params.get("timestamp") || "", token: params.get("token") || "", signature: params.get("signature") || "" };
+    }
+
+    // Require a valid Mailgun signature.
+    if (!verifyMailgunSignature(sig)) {
+      console.warn("/api/inbound-email:rejected invalid_signature", {
+        hasTimestamp: !!sig.timestamp, hasToken: !!sig.token, hasSignature: !!sig.signature,
+      });
+      return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
     }
 
     // Store envelope sender (forwarder's email) for reply feature
@@ -83,10 +124,9 @@ export async function POST(req: NextRequest) {
       originalFromLine = extractOriginalFromLine(htmlAsText);
     }
 
-    // Fallback: Only if NOT a forwarded email, use the envelope sender
-    // For forwarded emails, we must not set email_from to the forwarder's address
-    if (!originalFromLine && sender && !isForwarded) {
-      originalFromLine = sender;
+    // Fallback for non-forwarded mail: the message's From: header.
+    if (!originalFromLine && !isForwarded && fromHeader) {
+      originalFromLine = fromHeader;
     }
     
     // Strip only the forwarded separator line(s), keep From/Date/Subject/To metadata intact
@@ -159,11 +199,23 @@ export async function POST(req: NextRequest) {
     }
     
     // Attempt to detect original sender email (for sender_id): prefer parsed from originalFromLine, then from body, else envelope
-    const detectedSender =
+    let detectedSender: string | null =
       parseEmailAddress(originalFromLine || undefined) ||
       extractOriginalSender(rawText) ||
-      parseEmailAddress(sender) ||
-      sender;
+      null;
+
+    // Sender identity must be an organization address.
+    const isProtectedAddress = (addr: string | null | undefined) => {
+      const a = (addr || "").toLowerCase();
+      if (!a) return false;
+      if (honeytrapEmails.some(h => a.includes(h.toLowerCase()))) return true;
+      // Skip ESP bounce/return-path addresses.
+      if (isBounceShapedAddress(a)) return true;
+      const envelope = (parseEmailAddress(sender) || sender || "").toLowerCase();
+      return isForwarded && !!envelope && a.includes(envelope);
+    };
+    if (isProtectedAddress(detectedSender)) detectedSender = null;
+    if (isProtectedAddress(originalFromLine)) originalFromLine = null;
 
     // Skip ingest for known non-ActBlue senders and any addresses in INGEST_SUPPRESS_LIST
     const senderEmail = (detectedSender || sender || "").toLowerCase();
@@ -207,13 +259,22 @@ export async function POST(req: NextRequest) {
 
     // Insert into Supabase (with duplicate detection inside ingestTextSubmission)
     // Use cleaned text for heuristics and AI, but store raw text for reference
+    // Mask addresses other than the sender's in stored text.
+    const keepAddress = (detectedSender || "").toLowerCase();
+    const maskAddresses = (text: string) =>
+      text.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => {
+        if (keepAddress && m.toLowerCase() === keepAddress) return m;
+        const tld = m.slice(m.lastIndexOf(".") + 1);
+        return `*******@*******.${tld}`;
+      });
+
     const result = await ingestTextSubmission({
-      text: cleanedText || "",
-      rawText: rawText || "", // Store original for audit
+      text: maskAddresses(cleanedText || ""),
+      rawText: maskAddresses(rawText || ""), // Store original for audit
       senderId: detectedSender || null,
       messageType: "email",
       imageUrlPlaceholder: "email://no-image",
-      emailSubject: subject || null,
+      emailSubject: subject ? maskAddresses(subject) : null,
       emailBody: sanitizedHtml || null, // Sanitized HTML (no tracking/unsubscribe links) for display
       emailBodyOriginal: originalHtml || null, // Original HTML for URL extraction
       emailFrom: originalFromLine || null, // Full original "From:" line (prefer original content; not the forwarder)
@@ -308,7 +369,7 @@ export async function POST(req: NextRequest) {
         // Await to ensure completion in serverless environment
         await fetch(`${base}/api/send-non-fundraising-notice`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...internalHeaders() },
           body: JSON.stringify({ submissionId: result.id }),
         }).then(async (r) => {
           const text = await r.text().catch(() => "");
@@ -423,6 +484,17 @@ function validateAndCleanFromLine(fromLine: string): string | null {
 // - Name <email@example.com>
 // - "Name" <email@example.com>
 // - email@example.com
+// ESP bounce / return-path style addresses.
+function isBounceShapedAddress(addr: string): boolean {
+  const a = addr.toLowerCase();
+  const email = a.match(/[a-z0-9._%+=-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || a;
+  const [local, domain = ""] = email.split("@");
+  if (/[+=]/.test(local)) return true;
+  if (/(bounce|bounces|return|verp|envelope)/.test(local) || /^(bounce|bounces|return|verp)\./.test(domain)) return true;
+  if (/[0-9]{6,}/.test(local) || /^[a-z0-9]{20,}$/.test(local)) return true;
+  return false;
+}
+
 function parseEmailAddress(input: string | null | undefined): string | null {
   if (!input) return null;
   const m = input.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);

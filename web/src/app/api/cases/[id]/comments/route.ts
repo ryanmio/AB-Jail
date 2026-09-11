@@ -19,12 +19,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const supabase = getSupabaseServer();
 
   // enforce per-submission cap of 10 comments
-  const { data: countRows } = await supabase
+  const { count: existingCount, error: countErr } = await supabase
     .from("comments")
     .select("id", { count: "exact", head: true })
     .eq("submission_id", id);
-  const count = (countRows as unknown as { length?: number } | null)?.length ?? 0; // supabase head+count leaves data null; be defensive
-  if (typeof count === "number" && count >= 10) {
+  if (countErr) return NextResponse.json({ error: "count_failed" }, { status: 500 });
+  if ((existingCount ?? 0) >= 10) {
     return NextResponse.json({ error: "comments_limit_reached" }, { status: 429 });
   }
 

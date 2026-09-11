@@ -747,7 +747,7 @@ type RecentCase = {
   raw_text: string | null;
   image_url: string | null;
   message_type: string | null;
-  forwarder_email: string | null;
+  user_submitted: boolean;
   violations: Array<{ code: string; title: string; actblue_verified?: boolean | null }>;
 };
 
@@ -762,7 +762,6 @@ type ReportData = {
     id: string;
     case_id: string;
     to_email: string;
-    cc_email: string | null;
     subject: string;
     body: string;
     screenshot_url: string | null;
@@ -890,7 +889,7 @@ function RecentActivitySection() {
                   messageType: item.message_type,
                   imageUrl: item.image_url,
                   senderId: item.sender_id,
-                  forwarderEmail: item.forwarder_email,
+                  hasForwarder: item.user_submitted,
                 });
                 const violationType = item.violations?.[0]?.actblue_verified 
                   ? "Documented Matching Program" 

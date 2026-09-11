@@ -22,6 +22,21 @@ export type CaseDetail = {
   hasReport: boolean;
 };
 
+// Server-only columns; never returned to clients.
+export const SENSITIVE_SUBMISSION_COLUMNS = [
+  "email_body_original",
+  "email_from",
+  "submission_token",
+  "token_used_at",
+  "uploader_fingerprint",
+  "preview_email_status",
+] as const;
+
+export function stripSensitiveSubmissionColumns<T extends Record<string, unknown>>(row: T): T {
+  for (const key of SENSITIVE_SUBMISSION_COLUMNS) delete row[key];
+  return row;
+}
+
 export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
   const supabase = getSupabaseServer();
   const { data: items, error } = await supabase
@@ -30,7 +45,7 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
     .eq("id", id)
     .limit(1);
   if (error) throw error;
-  const item = items?.[0] || null;
+  const item = items?.[0] ? stripSensitiveSubmissionColumns(items[0] as Record<string, unknown>) : null;
   if (!item) return null;
 
   // Independent lookups; run them concurrently.
@@ -45,7 +60,7 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
       .limit(10),
     supabase
       .from("reports")
-      .select("id, case_id, to_email, cc_email, subject, body, screenshot_url, landing_url, status, created_at")
+      .select("id, case_id, to_email, subject, body, screenshot_url, landing_url, status, created_at")
       .eq("case_id", id)
       .order("created_at", { ascending: true }),
     // Secondary signal for hasReport that does not rely on reports table access (RLS-safe)
