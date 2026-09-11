@@ -211,6 +211,8 @@ export async function POST(req: NextRequest) {
       if (honeytrapEmails.some(h => a.includes(h.toLowerCase()))) return true;
       // Skip ESP bounce/return-path addresses.
       if (isBounceShapedAddress(a)) return true;
+      // Personal mailbox providers are not organizations.
+      if (isPersonalMailboxAddress(a)) return true;
       const envelope = (parseEmailAddress(sender) || sender || "").toLowerCase();
       return isForwarded && !!envelope && a.includes(envelope);
     };
@@ -484,6 +486,12 @@ function validateAndCleanFromLine(fromLine: string): string | null {
 // - Name <email@example.com>
 // - "Name" <email@example.com>
 // - email@example.com
+const PERSONAL_MAILBOX_DOMAINS = /@(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|msn|icloud|me|mac|aol|proton|protonmail|pm|comcast|att|verizon|sbcglobal|bellsouth|cox|charter|earthlink)\.(com|net|me|org)$/i;
+function isPersonalMailboxAddress(addr: string): boolean {
+  const email = addr.toLowerCase().match(/[a-z0-9._%+=-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || addr.toLowerCase();
+  return PERSONAL_MAILBOX_DOMAINS.test(email);
+}
+
 // ESP bounce / return-path style addresses.
 function isBounceShapedAddress(addr: string): boolean {
   const a = addr.toLowerCase();
