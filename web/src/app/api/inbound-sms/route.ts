@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
+import { env } from "@/lib/env";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { repairMojibake, cleanTextForAI, normalizePunctuation } from "@/server/ingest/text-cleaner";
+
+// Twilio signs each webhook: base64(HMAC-SHA1(auth_token, url + sorted(key+value) of POST params)).
+// https://www.twilio.com/docs/usage/webhooks/webhooks-security
+// Behind Vercel the URL Twilio used is the public one, so try the configured
+// site URL first and the raw request URL second.
+function verifyTwilioSignature(req: NextRequest, params: URLSearchParams): boolean {
+  const token = env.TWILIO_AUTH_TOKEN;
+  if (!token) {
+    console.error("/api/inbound-sms: TWILIO_AUTH_TOKEN not set; rejecting");
+    return false;
+  }
+  const provided = req.headers.get("x-twilio-signature") || "";
+  if (!provided) return false;
+  const sorted = Array.from(params.keys()).sort().map((k) => k + (params.get(k) ?? "")).join("");
+  const { pathname, search } = req.nextUrl;
+  const candidates = new Set<string>();
+  if (env.NEXT_PUBLIC_SITE_URL) candidates.add(`${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}${pathname}${search}`);
+  candidates.add(req.url);
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (host) candidates.add(`https://${host}${pathname}${search}`);
+  const given = Buffer.from(provided);
+  for (const url of candidates) {
+    const expected = Buffer.from(createHmac("sha1", token).update(url + sorted).digest("base64"));
+    if (expected.length === given.length && timingSafeEqual(expected, given)) return true;
+  }
+  return false;
+}
 
 // Twilio will POST with application/x-www-form-urlencoded by default
 export async function POST(req: NextRequest) {
@@ -15,10 +44,21 @@ export async function POST(req: NextRequest) {
     let fromNumber = "";
     const mediaUrls: Array<{ url: string; contentType?: string }> = [];
 
+    // Twilio always posts application/x-www-form-urlencoded and signs the
+    // request. Anything else is not Twilio; without this check anyone could
+    // create public SMS cases attributed to any number.
+    if (contentType.includes("application/json")) {
+      return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+    }
+
     if (contentType.includes("application/x-www-form-urlencoded")) {
       // Read raw body as UTF-8 and manually parse to ensure proper encoding
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
+      if (!verifyTwilioSignature(req, params)) {
+        console.warn("/api/inbound-sms:rejected invalid_signature");
+        return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+      }
       bodyText = params.get("Body") || "";
       fromNumber = params.get("From") || "";
       
@@ -34,27 +74,14 @@ export async function POST(req: NextRequest) {
           });
         }
       }
-    } else if (contentType.includes("application/json")) {
-      const json = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      bodyText = String(json?.Body || json?.body || "");
-      fromNumber = String(json?.From || json?.from || "");
-      
-      // Parse media attachments (MMS)
-      const numMedia = parseInt(String(json?.NumMedia || "0"), 10);
-      for (let i = 0; i < numMedia; i++) {
-        const mediaUrl = String(json?.[`MediaUrl${i}`] || "");
-        const mediaContentType = String(json?.[`MediaContentType${i}`] || "");
-        if (mediaUrl) {
-          mediaUrls.push({
-            url: mediaUrl,
-            contentType: mediaContentType || undefined,
-          });
-        }
-      }
     } else {
       // Best-effort: try reading as text and parsing as URLSearchParams
       const rawBody = await req.text();
       const params = new URLSearchParams(rawBody);
+      if (!verifyTwilioSignature(req, params)) {
+        console.warn("/api/inbound-sms:rejected invalid_signature");
+        return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+      }
       bodyText = params.get("Body") || "";
       fromNumber = params.get("From") || "";
       
