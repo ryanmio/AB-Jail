@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { repairMojibake, cleanTextForAI, normalizePunctuation } from "@/server/ingest/text-cleaner";
 
@@ -138,14 +138,14 @@ export async function POST(req: NextRequest) {
           || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
           || "http://localhost:3000";
         
-        // Fire-and-forget for screenshot (can take 15+ seconds)
-        fetch(`${base}/api/screenshot-actblue`, {
+        // Runs after the response is sent.
+        after(() => fetch(`${base}/api/screenshot-actblue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ caseId: result.id, url: result.landingUrl }),
         }).catch((e) => {
           console.error("/api/inbound-sms:screenshot_error", { submissionId: result.id, error: String(e) });
-        });
+        }));
       }
     } else {
       console.log("/api/inbound-sms:skipped_triggers_non_fundraising", { submissionId: result.id });

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { internalHeaders } from "@/lib/internal-auth";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
@@ -333,7 +333,7 @@ export async function POST(req: NextRequest) {
           submissionId: result.id,
           url: result.landingUrl
         });
-        void fetch(`${base}/api/screenshot-actblue`, {
+        after(() => fetch(`${base}/api/screenshot-actblue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ caseId: result.id, url: result.landingUrl }),
@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
             submissionId: result.id,
             error: String(e)
           });
-        });
+        }));
       }
     } else {
       console.log("/api/inbound-email:skipped_triggers_non_fundraising", { 

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { internalHeaders } from "@/lib/internal-auth";
 export const runtime = "nodejs";
 // Whole route is bounded at ~15s of capture plus an upload; anything longer is a hang.
@@ -88,8 +88,8 @@ export async function POST(req: NextRequest) {
     await supabase.from("comments").insert({ submission_id: caseId, content: contextText, kind: "landing_page" });
   } catch {}
 
-  // Attempt screenshot with hard 15s timeout (launch + navigate + capture)
-  const timeoutMs = 15000;
+  // Attempt screenshot with hard 30s timeout (launch + navigate + capture)
+  const timeoutMs = 30000;
   let screenshotBuf: Buffer | null = null;
   let browser: any = null;
   // Set when the deadline fires. If that happens while puppeteer.launch() is
@@ -233,21 +233,21 @@ export async function POST(req: NextRequest) {
     // Fire-and-forget classify with existing comments included
     try {
       const base = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-      void fetch(`${base}/api/classify`, {
+      after(() => fetch(`${base}/api/classify`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...internalHeaders() },
         body: JSON.stringify({ submissionId: caseId, includeExistingComments: true }),
-      }).catch(() => undefined);
+      }).catch(() => undefined));
     } catch {}
 
     // Fire-and-forget sender re-extraction with landing page screenshot
     try {
       const base = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-      void fetch(`${base}/api/sender`, {
+      after(() => fetch(`${base}/api/sender`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...internalHeaders() },
         body: JSON.stringify({ submissionId: caseId }),
-      }).catch(() => undefined);
+      }).catch(() => undefined));
     } catch {}
 
     console.log("/api/screenshot-actblue:ok", { caseId, elapsedMs: Date.now() - startedAt, host: targetHost, bytes: screenshotBuf?.byteLength ?? 0 });
