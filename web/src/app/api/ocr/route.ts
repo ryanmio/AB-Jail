@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { internalHeaders } from "@/lib/internal-auth";
 export const runtime = "nodejs";
 import { getSupabaseServer } from "@/lib/supabase-server";
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
     const base = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const classifyUrl = `${base}/api/classify`;
     const senderUrl = `${base}/api/sender`;
-    void fetch(classifyUrl, {
+    after(() => fetch(classifyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
@@ -315,9 +315,9 @@ export async function POST(req: NextRequest) {
       })
       .catch((err) => {
         console.error("/api/ocr classify trigger error", err);
-      });
+      }));
 
-    void fetch(senderUrl, {
+    after(() => fetch(senderUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...internalHeaders() },
       body: JSON.stringify({ submissionId }),
@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
       })
       .catch((err) => {
         console.error("/api/ocr sender trigger error", err);
-      });
+      }));
   } catch (err) {
     console.error("/api/ocr classify trigger setup error", err);
   }
