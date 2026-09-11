@@ -18,6 +18,7 @@ export async function GET(
     .from("submissions")
     .select("email_body, message_type")
     .eq("id", id)
+    .eq("public", true)
     .limit(1);
 
   if (error || !rows?.[0]) {
