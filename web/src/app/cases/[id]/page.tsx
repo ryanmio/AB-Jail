@@ -7,7 +7,6 @@ import { LiveViolations, LiveSender, LiveSummary, RequestDeletionButton, Comment
 import LocalTime from "@/components/LocalTime";
 import Footer from "@/components/Footer";
 import { getSupabaseServer } from "@/lib/supabase-server";
-import { notFound } from "next/navigation";
 import { getCaseDetail, getCaseImageUrl, getCaseLandingUrl } from "@/server/cases/detail";
 import { isBotSubmitted } from "@/lib/badge-helpers";
 type CaseItem = {
@@ -171,7 +170,7 @@ export default async function CaseDetailPage({
     getCaseLandingUrl(id).catch(() => ({ url: null, landingUrl: null, status: null } as { url: string | null; landingUrl: string | null; status: string | null })),
   ]);
   const data = detail as unknown as CaseData | null;
-  if (!data?.item) notFound();
+  if (!data?.item) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
 
   const item = data.item;
   
