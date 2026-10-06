@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireInternalSecret } from "@/lib/internal-auth";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { truncateForAI } from "@/server/ai/constants";
+import { alertPipelineFailure } from "@/lib/pipeline-alert";
 
 export async function POST(req: NextRequest) {
   const denied = requireInternalSecret(req);
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
     });
     const json = await resp.json();
     if (!resp.ok) {
+      console.error("[/api/sender] openai_failed", { submissionId, status: resp.status, detail: JSON.stringify(json) });
+      await alertPipelineFailure({ step: "sender", submissionId, status: resp.status, detail: json });
       return NextResponse.json({ error: "openai_failed", detail: json }, { status: 502 });
     }
     type OpenAIChatResponse = { choices?: Array<{ message?: { content?: string } }> };

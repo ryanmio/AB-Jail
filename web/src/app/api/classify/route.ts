@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     replaceExisting: true,
   });
   if (!result.ok) {
-    console.error("/api/classify:failed", { submissionId, result });
+    console.error("/api/classify:failed", { submissionId, status: result.status, error: result.error, detail: JSON.stringify((result as any).detail ?? null) });
     return NextResponse.json({ error: result.error, detail: (result as any).detail }, { status: result.status });
   }
   console.log("/api/classify:done", { submissionId, violations: result.violations, ms: result.ms });

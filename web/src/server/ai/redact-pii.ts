@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { truncateForAI } from "./constants";
+import { alertPipelineFailure } from "@/lib/pipeline-alert";
 
 export interface PIIDetectionResult {
   strings_to_redact: string[];
@@ -107,8 +108,9 @@ Be conservative with confidence. Only return high confidence (≥0.7) when you f
       console.error("detectPII:openai_failed", { 
         status: resp.status, 
         elapsed,
-        error: errorBody,
+        error: JSON.stringify(errorBody),
       });
+      await alertPipelineFailure({ step: "redact-pii", status: resp.status, detail: errorBody });
       
       return {
         strings_to_redact: [],
