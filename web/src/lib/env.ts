@@ -21,6 +21,8 @@ const EnvSchema = z.object({
   REPORT_EMAIL_TO: z.string().email().optional(),
   REPORT_EMAIL_FROM: z.string().email().optional(),
   DATA_REQUEST_EMAIL: z.string().email().optional(),
+  // Pipeline failure alerts (falls back to DATA_REQUEST_EMAIL)
+  ALERT_EMAIL_TO: z.string().email().optional(),
 
   GITHUB_TOKEN: z.string().optional(),
 
@@ -72,6 +74,7 @@ export const env: AppEnv = EnvSchema.parse({
   REPORT_EMAIL_TO: process.env.REPORT_EMAIL_TO || process.env.REPORT_TO_EMAIL,
   REPORT_EMAIL_FROM: process.env.REPORT_EMAIL_FROM || process.env.REPORT_FROM_EMAIL,
   DATA_REQUEST_EMAIL: process.env.DATA_REQUEST_EMAIL,
+  ALERT_EMAIL_TO: process.env.ALERT_EMAIL_TO,
 
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
 

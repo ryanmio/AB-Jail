@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { alertPipelineFailure } from "@/lib/pipeline-alert";
 import { truncateForAI } from "./constants";
 
 function parseSupabaseUrl(u?: string | null) {
@@ -161,6 +162,7 @@ export async function runClassification(submissionId: string, opts: RunClassific
     if (!resp.ok) {
       // ensure terminal error state to avoid stuck status
       await supabase.from("submissions").update({ processing_status: "error" }).eq("id", submissionId);
+      await alertPipelineFailure({ step: "classify", submissionId, status: resp.status, detail: json });
       return { ok: false, status: 502, error: "openai_failed" as const, detail: json };
     }
     const content = (json as any)?.choices?.[0]?.message?.content?.trim() || "{}";
@@ -169,9 +171,10 @@ export async function runClassification(submissionId: string, opts: RunClassific
     } catch {
       parsedOut = { violations: [], summary: "Parse failed", overall_confidence: 0 } as any;
     }
-  } catch {
+  } catch (e) {
     // ensure terminal error state to avoid stuck status
     await supabase.from("submissions").update({ processing_status: "error" }).eq("id", submissionId);
+    await alertPipelineFailure({ step: "classify", submissionId, detail: String(e) });
     return { ok: false, status: 500, error: "openai_failed" as const };
   }
 

@@ -154,6 +154,14 @@ export function LiveViolations({ id, initialViolations, initialStatus, initialAi
     return () => window.removeEventListener("reclassify-started", onReclassify as EventListener);
   }, [id, startPolling]);
 
+  if (status === "error") {
+    return (
+      <div className="p-4 bg-slate-50 rounded-xl text-center">
+        <p className="text-slate-600">Analysis could not be completed for this case yet. It will be retried.</p>
+      </div>
+    );
+  }
+
   if (status !== "done") {
     return (
       <div className="space-y-4">
@@ -407,7 +415,9 @@ export function LiveSummary({ id, initialSummary, initialStatus, initialViolatio
     };
   }, [id, initialStatus]);
 
-  const textOut = status === "done" && hasNoViolations ? "No violations detected" : (summary || "Analysis in progress...");
+  const textOut = status === "done" && hasNoViolations
+    ? "No violations detected"
+    : (summary || (status === "error" ? "Analysis unavailable" : "Analysis in progress..."));
   return (
     <p className="text-slate-700 text-base leading-relaxed">{textOut}</p>
   );
