@@ -90,8 +90,7 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
     const sigState = signatureOk(rawBody, req);
     if (sigState !== "ok") {
-      // "unconfigured" means the env var is missing on this deployment; refuse rather than
-      // accept unsigned posts from the open internet.
+      // "unconfigured" = env var missing on this deployment
       console.warn("/api/inbound-sms-gateway:rejected", { reason: sigState });
       return NextResponse.json({ ok: false }, { status: 401 });
     }
@@ -111,7 +110,12 @@ export async function POST(req: NextRequest) {
       deviceId: env_.deviceId || null,
       messageId: p.messageId ?? null,
       sender: p.sender || p.phoneNumber || null,
-      attachments: Array.isArray(p.attachments) ? p.attachments.length : 0,
+      payloadKeys: Object.keys(p),
+      bodyLen: typeof p.body === "string" ? p.body.length : null,
+      subjectLen: typeof p.subject === "string" ? p.subject.length : null,
+      attachments: Array.isArray(p.attachments)
+        ? p.attachments.map((a) => ({ ct: a?.contentType || null, size: a?.size ?? null, hasData: !!a?.data }))
+        : [],
     });
 
     // mms:received fires before the content is downloaded; mms:downloaded has the content.
@@ -179,9 +183,16 @@ export async function POST(req: NextRequest) {
     const repaired = normalizePunctuation(repairMojibake(text));
     const cleanedForAI = cleanTextForAI(repaired);
 
+    // Image-only MMS: an empty body would hash to the same value every time and
+    // collide with the previous image-only message. Give dedupe a per-message key
+    // instead so each image-only message is stored.
+    const dedupeText = text
+      ? text
+      : `image-only mms ${env_.deviceId || "device"} ${p.messageId ?? ""} ${p.receivedAt || Date.now()}`;
+
     const result = await ingestTextSubmission({
       text: cleanedForAI || "",
-      rawText: text,
+      rawText: dedupeText,
       senderId: fromNumber || null,
       messageType: "sms",
       imageUrlPlaceholder: primaryImageUrl || "sms://no-image",
