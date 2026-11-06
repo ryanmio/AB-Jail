@@ -6,6 +6,7 @@ import {
   paginatedResponse,
   apiError,
 } from "@/lib/api-utils";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 // html_body omitted from list to reduce response size; available via /submissions/:id detail endpoint
 const SELECTED_FIELDS =
@@ -45,7 +46,11 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = (data || []) as unknown as Record<string, unknown>[];
-    for (const row of rows) delete row.submissions;
+    for (const row of rows) {
+      delete row.submissions;
+      row.landing_url = landingUrlBase(row.landing_url as string | null);
+      row.body = publicMessageText(row.body as string | null);
+    }
 
     const total = typeof count === "number" ? count : rows.length + offset;
     return paginatedResponse(rows, total, { limit, offset });

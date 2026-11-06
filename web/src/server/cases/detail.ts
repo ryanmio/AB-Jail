@@ -1,4 +1,5 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 // Shared data layer for a single case. Used by both the /api/cases/[id]* route
 // handlers and the server-rendered /cases/[id] page, so the page can read
@@ -47,6 +48,8 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
   if (error) throw error;
   const item = items?.[0] ? stripSensitiveSubmissionColumns(items[0] as Record<string, unknown>) : null;
   if (!item) return null;
+  item.landing_url = landingUrlBase(item.landing_url as string | null);
+  item.raw_text = publicMessageText(item.raw_text as string | null);
 
   // Independent lookups; run them concurrently.
   const [viosRes, commentsRes, reportsRes, landingNotesRes, repliesRes, verdictRes] = await Promise.all([
@@ -98,7 +101,15 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
     summary = sorted[0]?.description ?? null;
   }
 
-  const reportRows = reportsRes.data || [];
+  const reportRows = ((reportsRes.data || []) as Array<Record<string, unknown>>).map((r) => ({
+    ...r,
+    body: publicMessageText(r.body as string | null),
+    landing_url: landingUrlBase(r.landing_url as string | null),
+  }));
+  const replyRows = ((repliesRes.data || []) as Array<Record<string, unknown>>).map((r) => ({
+    ...r,
+    body_text: publicMessageText(r.body_text as string | null),
+  }));
   const landingNotes = landingNotesRes.data || [];
   const hasReport = reportRows.length > 0 || landingNotes.length > 0;
 
@@ -108,7 +119,7 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
     summary,
     comments: commentsRes.data || [],
     reports: reportRows,
-    report_replies: repliesRes.data || [],
+    report_replies: replyRows,
     verdict: verdictRes.data?.[0] || null,
     hasReport,
   };
@@ -164,7 +175,7 @@ export async function getCaseLandingUrl(id: string): Promise<CaseLandingUrl> {
     .limit(1);
   if (error) throw error;
   const row = items?.[0] as { landing_screenshot_url?: string | null; landing_url?: string | null; landing_render_status?: string | null; landing_link_position?: string | null } | undefined;
-  const landingUrl = row?.landing_url || null;
+  const landingUrl = landingUrlBase(row?.landing_url);
   const landingLinkPosition = row?.landing_link_position || null;
   const status = row?.landing_render_status || null;
   const imageUrl = row?.landing_screenshot_url || null;

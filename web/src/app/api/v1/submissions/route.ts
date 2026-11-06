@@ -7,6 +7,7 @@ import {
   apiError,
   resolveImageUrls,
 } from "@/lib/api-utils";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 const SELECTED_FIELDS = [
   "id",
@@ -99,6 +100,11 @@ export async function GET(req: NextRequest) {
       for (const row of rows) {
         delete row.violations;
       }
+    }
+
+    for (const row of rows) {
+      row.landing_url = landingUrlBase(row.landing_url as string | null);
+      row.raw_text = publicMessageText(row.raw_text as string | null);
     }
 
     await resolveImageUrls(

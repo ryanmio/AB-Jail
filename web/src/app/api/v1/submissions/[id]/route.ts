@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import { singleResponse, apiError, resolveImageUrl } from "@/lib/api-utils";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 const SELECTED_FIELDS = [
   "id",
@@ -47,6 +48,8 @@ export async function GET(
     }
 
     const row = submission as unknown as Record<string, unknown>;
+    row.landing_url = landingUrlBase(row.landing_url as string | null);
+    row.raw_text = publicMessageText(row.raw_text as string | null);
 
     // Resolve image URLs
     row.image_url = await resolveImageUrl(
@@ -86,7 +89,11 @@ export async function GET(
     return singleResponse({
       ...row,
       violations: violations || [],
-      reports: reports || [],
+      reports: ((reports || []) as Array<Record<string, unknown>>).map((r) => ({
+        ...r,
+        body: publicMessageText(r.body as string | null),
+        landing_url: landingUrlBase(r.landing_url as string | null),
+      })),
       comments: comments || [],
     });
   } catch (err) {

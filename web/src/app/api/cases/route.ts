@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { publicMessageText } from "@/server/cases/public-links";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -201,7 +202,7 @@ export async function GET(req: NextRequest) {
           emailSentAt: r.email_sent_at,
           senderId: r.sender_id,
           senderName: r.sender_name,
-          rawText: r.raw_text,
+          rawText: publicMessageText(r.raw_text),
           messageType: r.message_type,
           hasForwarder: !!r.forwarder_email,
           imageUrl: r.image_url,
@@ -228,7 +229,7 @@ export async function GET(req: NextRequest) {
       emailSentAt: r.email_sent_at,
       senderId: r.sender_id,
       senderName: r.sender_name,
-      rawText: r.raw_text,
+      rawText: publicMessageText(r.raw_text),
       messageType: r.message_type,
       hasForwarder: !!r.forwarder_email,
       imageUrl: r.image_url,

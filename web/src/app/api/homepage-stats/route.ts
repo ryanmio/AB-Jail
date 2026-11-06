@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 // Public aggregate data - let the Vercel CDN serve repeat hits so the function
 // isn't invoked for every visitor/crawler.
@@ -32,9 +33,20 @@ export async function GET(req: NextRequest) {
     }
 
     // data is already a JSON object with recent_cases, worst_offenders, and recent_reports.
+    if (data && Array.isArray(data.recent_cases)) {
+      for (const entry of data.recent_cases) {
+        if (entry && typeof entry === "object" && "raw_text" in entry) entry.raw_text = publicMessageText(entry.raw_text);
+      }
+    }
     if (data && Array.isArray(data.recent_reports)) {
       for (const entry of data.recent_reports) {
-        if (entry?.report && typeof entry.report === "object") delete entry.report.cc_email;
+        if (entry?.report && typeof entry.report === "object") {
+          delete entry.report.cc_email;
+          if ("landing_url" in entry.report) entry.report.landing_url = landingUrlBase(entry.report.landing_url);
+        }
+        if (entry?.case && typeof entry.case === "object" && "raw_text" in entry.case) {
+          entry.case.raw_text = publicMessageText(entry.case.raw_text);
+        }
       }
     }
     return NextResponse.json(data || { recent_cases: [], worst_offenders: [], recent_reports: [] }, {
