@@ -71,6 +71,8 @@ const URL_BLACKLIST_KEYWORDS = [
   "manage", "manage-subscriptions", "update-profile"
 ];
 
+const OPT_OUT_PATH = /fewer|opt[-_]?out|remove[-_]?me|stop[-_]?(text|msg|message|sms|email)|less[-_]?(text|email)|(^|[\/=_-])(stop|quit|leave|cancel)([\/?&=_-]|$)/i;
+
 const SOCIAL_HOSTS = [
   "facebook.com", "twitter.com", "x.com", "instagram.com", 
   "youtube.com", "linkedin.com"
@@ -91,7 +93,13 @@ function shouldSkipUrl(url: string): { skip: boolean; reason?: string } {
   }
   
   try {
-    const host = new URL(url).hostname.toLowerCase();
+    const parsed = new URL(url);
+    const isActBlue = /(^|\.)actblue\.com$/i.test(parsed.hostname);
+    // Opt-out pages, matched on path and query only (hosts like stop*.io are fine).
+    if (!isActBlue && OPT_OUT_PATH.test(parsed.pathname + parsed.search)) {
+      return { skip: true, reason: "opt_out" };
+    }
+    const host = parsed.hostname.toLowerCase();
     for (const social of SOCIAL_HOSTS) {
       if (host.includes(social)) {
         return { skip: true, reason: `social:${social}` };
