@@ -181,7 +181,7 @@ const isActBlueHost = (host: string) => host === "actblue.com" || host.endsWith(
 const BLOCKED_HOSTS = ["google.com"];
 const isBlockedResult = (r: FollowResult) => {
   if (r.status !== "success" || !r.finalUrl) return true;
-  if (r.finalStatus === 403 || r.finalStatus === 429) return true;
+  if (r.finalStatus === 403 || r.finalStatus === 429 || (r.finalStatus ?? 0) >= 500) return true;
   const host = hostOf(r.finalUrl);
   return BLOCKED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
 };
@@ -208,7 +208,7 @@ export function rankLinkCandidates(input: { text: string; html?: string | null; 
   for (const link of findLinks(text)) add(link.url, hasDonateIntent(link.label), zoneOf(link.index));
 
   return Array.from(byUrl.values())
-    .filter((c) => !shouldSkipUrl(c.url).skip)
+    .filter((c) => /^https?:\/\//i.test(c.url) && !shouldSkipUrl(c.url).skip)
     .sort((a, b) => {
       if (a.intent !== b.intent) return a.intent ? -1 : 1;
       if (a.zone !== b.zone) return a.zone === "body" ? -1 : 1;
@@ -220,7 +220,7 @@ export type ActBlueExtraction = {
   landingUrl: string | null;
   position: LinkZone | null;
   // "none": links were followed, every fetch finished cleanly and none reached ActBlue.
-  // "unknown": no candidates, or at least one fetch failed, timed out or was blocked.
+  // "unknown": no candidates, at least one fetch failed, timed out or was blocked, or links were left untried.
   outcome: "actblue" | "none" | "unknown";
   fetches: number;
 };
@@ -260,7 +260,7 @@ export async function extractActBlueUrl(
       return null;
     }
   };
-  const done = (landingUrl: string, position: LinkZone, fetches: number, via: string): ActBlueExtraction => {
+  const done = (landingUrl: string, position: LinkZone | null, fetches: number, via: string): ActBlueExtraction => {
     console.log(`${logPrefix}:selectionOutcome`, { outcome: "actblue", via, position, fetches });
     return { landingUrl, position, outcome: "actblue", fetches };
   };
@@ -279,10 +279,17 @@ export async function extractActBlueUrl(
 
   let fetches = 0;
   let allClean = true;
-  for (const c of toFollow) {
-    if (fetches >= MAX_FETCHES) break;
+  // A body link that failed or was never tried: header/footer-only can't be confirmed.
+  let bodyUnresolved = false;
+  for (let i = 0; i < toFollow.length; i++) {
+    const c = toFollow[i];
     // Once a header/footer link reached ActBlue, only body links can do better.
     if (headerFooterHit && c.zone !== "body") continue;
+    if (fetches >= MAX_FETCHES) {
+      allClean = false;
+      if (toFollow.slice(i).some((r) => r.zone === "body")) bodyUnresolved = true;
+      break;
+    }
     fetches++;
     const result = await follow(c.url, 5);
     console.log(`${logPrefix}:follow`, {
@@ -299,10 +306,13 @@ export async function extractActBlueUrl(
       headerFooterHit = headerFooterHit ?? hit.base;
       continue;
     }
-    if (isBlockedResult(result)) allClean = false;
+    if (isBlockedResult(result)) {
+      allClean = false;
+      if (c.zone === "body") bodyUnresolved = true;
+    }
   }
 
-  if (headerFooterHit) return done(headerFooterHit, "header_footer", fetches, "header_footer");
+  if (headerFooterHit) return done(headerFooterHit, bodyUnresolved ? null : "header_footer", fetches, "header_footer");
 
   const outcome = fetches > 0 && allClean ? "none" : "unknown";
   console.log(`${logPrefix}:selectionOutcome`, { outcome, fetches, candidates: candidates.length });

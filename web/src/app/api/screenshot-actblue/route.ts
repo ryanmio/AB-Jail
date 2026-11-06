@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
   if (!caseId || !url) return NextResponse.json({ error: "missing_args" }, { status: 400 });
   if (!isValidActBlueUrl(url)) return NextResponse.json({ error: "invalid_url" }, { status: 400 });
 
+  // A different URL than the one found at ingest: its link position is unknown.
+  await supabase
+    .from("submissions")
+    .update({ landing_link_position: null })
+    .eq("id", caseId)
+    .neq("landing_url", url);
+
   // Mark pending state immediately so UI can reflect
   await supabase
     .from("submissions")
