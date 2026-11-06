@@ -11,7 +11,7 @@ const LINK_PATTERN =
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
 const PLAIN_PATH = /^(\/[A-Za-z0-9._~\/-]*)?$/;
 
-function isShownHost(host: string): boolean {
+export function isShownHost(host: string): boolean {
   const h = host.toLowerCase();
   return h === "actblue.com" || h.endsWith(".actblue.com") || h === "abjail.org" || h.endsWith(".abjail.org");
 }

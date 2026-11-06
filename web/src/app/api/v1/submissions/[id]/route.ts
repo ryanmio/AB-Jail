@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { authenticateApiKey, isAuthError } from "@/lib/api-auth";
 import { singleResponse, apiError, resolveImageUrl } from "@/lib/api-utils";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
 
 const SELECTED_FIELDS = [
   "id",
@@ -50,6 +51,8 @@ export async function GET(
     const row = submission as unknown as Record<string, unknown>;
     row.landing_url = landingUrlBase(row.landing_url as string | null);
     row.raw_text = publicMessageText(row.raw_text as string | null);
+    row.email_subject = publicEmailSubject(row.email_subject as string | null);
+    row.email_body = publicEmailHtml(row.email_body as string | null);
 
     // Resolve image URLs
     row.image_url = await resolveImageUrl(
@@ -94,7 +97,10 @@ export async function GET(
         body: publicMessageText(r.body as string | null),
         landing_url: landingUrlBase(r.landing_url as string | null),
       })),
-      comments: comments || [],
+      comments: ((comments || []) as Array<Record<string, unknown>>).map((c) => ({
+        ...c,
+        content: publicMessageText(c.content as string | null),
+      })),
     });
   } catch (err) {
     console.error(`/api/v1/submissions/${id} unexpected error`, err);

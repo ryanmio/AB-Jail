@@ -6,6 +6,7 @@ import {
   paginatedResponse,
   apiError,
 } from "@/lib/api-utils";
+import { publicMessageText } from "@/server/cases/public-links";
 
 export async function GET(req: NextRequest) {
   const auth = await authenticateApiKey(req);
@@ -43,7 +44,10 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = (data || []) as unknown as Record<string, unknown>[];
-    for (const row of rows) delete row.submissions;
+    for (const row of rows) {
+      delete row.submissions;
+      row.content = publicMessageText(row.content as string | null);
+    }
 
     const total =
       typeof count === "number" ? count : rows.length + offset;

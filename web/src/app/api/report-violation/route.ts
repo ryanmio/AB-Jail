@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { randomBytes } from "crypto";
 import { env } from "@/lib/env";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { publicEmailHtml } from "@/server/cases/public-email-html";
 
 function parseSupabaseUrl(u: string | null | undefined) {
   if (!u || !u.startsWith("supabase://")) return null;
@@ -278,8 +279,9 @@ export async function POST(req: NextRequest) {
 
   // Build attachments for email
   const attachments: Array<{ filename: string; content: string; type?: string }> = [];
-  if (sub.email_body) {
-    const base64 = Buffer.from(String(sub.email_body), "utf8").toString("base64");
+  const emailHtml = publicEmailHtml(sub.email_body);
+  if (emailHtml) {
+    const base64 = Buffer.from(emailHtml, "utf8").toString("base64");
     attachments.push({ filename: "original_email.html", content: base64, type: "text/html" });
   } else if (sub.raw_text) {
     const base64 = Buffer.from(String(sub.raw_text), "utf8").toString("base64");

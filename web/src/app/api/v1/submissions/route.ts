@@ -8,6 +8,7 @@ import {
   resolveImageUrls,
 } from "@/lib/api-utils";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
 
 const SELECTED_FIELDS = [
   "id",
@@ -105,6 +106,8 @@ export async function GET(req: NextRequest) {
     for (const row of rows) {
       row.landing_url = landingUrlBase(row.landing_url as string | null);
       row.raw_text = publicMessageText(row.raw_text as string | null);
+      row.email_subject = publicEmailSubject(row.email_subject as string | null);
+      row.email_body = publicEmailHtml(row.email_body as string | null);
     }
 
     await resolveImageUrls(

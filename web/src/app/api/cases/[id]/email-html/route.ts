@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { publicEmailHtml } from "@/server/cases/public-email-html";
 
 export async function GET(
   _req: NextRequest,
@@ -34,7 +35,7 @@ export async function GET(
   }
 
   // Return the raw HTML with strict CSP to prevent XSS
-  return new NextResponse(sub.email_body, {
+  return new NextResponse(publicEmailHtml(sub.email_body) ?? "", {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",

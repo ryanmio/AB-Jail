@@ -5,6 +5,7 @@ import { ingestTextSubmission, triggerPipelines } from "@/server/ingest/save";
 import { cleanTextForAI } from "@/server/ingest/text-cleaner";
 import { sanitizeEmailHtml } from "@/server/ingest/html-sanitizer";
 import { env } from "@/lib/env";
+import { maskListedIds, publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
 
 // Known non-ActBlue fundraisers — emails from these domains are skipped at ingest.
 const SKIP_SENDER_DOMAINS: string[] = [
@@ -157,13 +158,7 @@ export async function POST(req: NextRequest) {
         result = result.replace(new RegExp(escaped, 'gi'), '*******@*******.com');
       }
       
-      // Redact tracking IDs
-      for (const id of honeytrapIds) {
-        const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        result = result.replace(new RegExp(escaped, 'gi'), '########');
-      }
-      
-      return result;
+      return maskListedIds(result, honeytrapIds);
     };
     
     rawText = redactHoneytrap(rawText);
@@ -183,7 +178,6 @@ export async function POST(req: NextRequest) {
       console.log("/api/inbound-email:html_extraction", {
         originalHtmlLength: originalHtml.length,
         hrefCount: hrefMatches.length,
-        sampleHrefs: hrefMatches.slice(0, 5).map(m => m[1])
       });
     }
     
@@ -195,7 +189,7 @@ export async function POST(req: NextRequest) {
       sanitizedHtml = sanitizedHtml
         .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*(?:<br\s*\/?\s*>|\r?\n)+/im, "")
         .replace(/^[\s>]*-+\s*Forwarded message\s*-+\s*(?:<br\s*\/?\s*>)?$/gim, "");
-      sanitizedHtml = redactHoneytrap(sanitizedHtml);
+      sanitizedHtml = publicEmailHtml(redactHoneytrap(sanitizedHtml), honeytrapIds);
     }
     
     // Attempt to detect original sender email (for sender_id): prefer parsed from originalFromLine, then from body, else envelope
@@ -276,7 +270,7 @@ export async function POST(req: NextRequest) {
       senderId: detectedSender || null,
       messageType: "email",
       imageUrlPlaceholder: "email://no-image",
-      emailSubject: subject ? maskAddresses(subject) : null,
+      emailSubject: subject ? publicEmailSubject(maskAddresses(subject), honeytrapIds) : null,
       emailBody: sanitizedHtml || null, // Sanitized HTML (no tracking/unsubscribe links) for display
       emailBodyOriginal: originalHtml || null, // Original HTML for URL extraction
       emailFrom: originalFromLine || null, // Full original "From:" line (prefer original content; not the forwarder)
@@ -290,7 +284,7 @@ export async function POST(req: NextRequest) {
       id: result.id || null,
       from: detectedSender || null,
       fromLine: originalFromLine || null,
-      subject: subject ? subject.slice(0, 50) : null,
+      subjectLen: subject ? subject.length : 0,
       rawLen: rawText ? rawText.length : 0,
       cleanedLen: cleanedText ? cleanedText.length : 0,
       isFundraising: result.isFundraising ?? null,
@@ -333,7 +327,6 @@ export async function POST(req: NextRequest) {
         const base = process.env.NEXT_PUBLIC_SITE_URL || "";
         console.log("/api/inbound-email:triggering_screenshot", {
           submissionId: result.id,
-          url: result.landingUrl
         });
         after(() => fetch(`${base}/api/screenshot-actblue`, {
           method: "POST",
@@ -344,7 +337,6 @@ export async function POST(req: NextRequest) {
           console.log("/api/inbound-email:screenshot_triggered", { 
             status: r.status, 
             caseId: result.id,
-            url: result.landingUrl,
             response: text?.slice(0, 200) 
           });
         }).catch((e) => {

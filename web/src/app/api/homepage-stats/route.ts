@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml } from "@/server/cases/public-email-html";
 
 // Public aggregate data - let the Vercel CDN serve repeat hits so the function
 // isn't invoked for every visitor/crawler.
@@ -45,8 +46,9 @@ export async function GET(req: NextRequest) {
           if ("landing_url" in entry.report) entry.report.landing_url = landingUrlBase(entry.report.landing_url);
           if ("body" in entry.report) entry.report.body = publicMessageText(entry.report.body);
         }
-        if (entry?.case && typeof entry.case === "object" && "raw_text" in entry.case) {
-          entry.case.raw_text = publicMessageText(entry.case.raw_text);
+        if (entry?.case && typeof entry.case === "object") {
+          if ("raw_text" in entry.case) entry.case.raw_text = publicMessageText(entry.case.raw_text);
+          if ("email_body" in entry.case) entry.case.email_body = publicEmailHtml(entry.case.email_body);
         }
       }
     }

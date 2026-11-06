@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
 
 /**
  * Check if URL is an image file (not PDF or other formats)
@@ -137,8 +138,8 @@ export async function GET(req: NextRequest) {
         createdAt: sub.created_at,
         landingUrl: landingUrlBase(sub.landing_url),
         landingScreenshotUrl: await convertToSignedUrl(supabase, sub.landing_screenshot_url),
-        emailBody: sub.email_body || null,
-        emailSubject: sub.email_subject || null,
+        emailBody: publicEmailHtml(sub.email_body),
+        emailSubject: publicEmailSubject(sub.email_subject),
         emailFrom: sub.sender_name || null,
         aiViolations: violationsBySubmission[sub.id] || [],
       }))

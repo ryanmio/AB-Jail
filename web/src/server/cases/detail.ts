@@ -1,5 +1,6 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
 
 // Shared data layer for a single case. Used by both the /api/cases/[id]* route
 // handlers and the server-rendered /cases/[id] page, so the page can read
@@ -50,6 +51,8 @@ export async function getCaseDetail(id: string): Promise<CaseDetail | null> {
   if (!item) return null;
   item.landing_url = landingUrlBase(item.landing_url as string | null);
   item.raw_text = publicMessageText(item.raw_text as string | null);
+  item.email_subject = publicEmailSubject(item.email_subject as string | null);
+  item.email_body = publicEmailHtml(item.email_body as string | null);
 
   // Independent lookups; run them concurrently.
   const [viosRes, commentsRes, reportsRes, landingNotesRes, repliesRes, verdictRes] = await Promise.all([

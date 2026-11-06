@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
+import { publicEmailHtml } from "@/server/cases/public-email-html";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -144,7 +145,7 @@ export async function GET() {
           image_url: caseData.image_url,
           created_at: caseData.created_at,
           message_type: caseData.message_type,
-          email_body: caseData.email_body,
+          email_body: publicEmailHtml(caseData.email_body),
         } : {
           id: r.case_id,
           sender_name: null,
