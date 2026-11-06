@@ -153,26 +153,27 @@ export async function getCaseImageUrl(id: string): Promise<CaseImageUrl> {
   return { url, mime, ext };
 }
 
-export type CaseLandingUrl = { url: string | null; landingUrl: string | null; status: string | null; mime?: string | null };
+export type CaseLandingUrl = { url: string | null; landingUrl: string | null; status: string | null; mime?: string | null; landingLinkPosition?: string | null };
 
 export async function getCaseLandingUrl(id: string): Promise<CaseLandingUrl> {
   const supabase = getSupabaseServer();
   const { data: items, error } = await supabase
     .from("submissions")
-    .select("landing_screenshot_url, landing_url, landing_render_status")
+    .select("landing_screenshot_url, landing_url, landing_render_status, landing_link_position")
     .eq("id", id)
     .limit(1);
   if (error) throw error;
-  const row = items?.[0] as { landing_screenshot_url?: string | null; landing_url?: string | null; landing_render_status?: string | null } | undefined;
+  const row = items?.[0] as { landing_screenshot_url?: string | null; landing_url?: string | null; landing_render_status?: string | null; landing_link_position?: string | null } | undefined;
   const landingUrl = row?.landing_url || null;
+  const landingLinkPosition = row?.landing_link_position || null;
   const status = row?.landing_render_status || null;
   const imageUrl = row?.landing_screenshot_url || null;
-  if (!imageUrl) return { url: null, landingUrl, status };
+  if (!imageUrl) return { url: null, landingUrl, status, landingLinkPosition };
   // Accept both supabase://bucket/path and raw https URLs
-  if (imageUrl.startsWith("http")) return { url: imageUrl, landingUrl, status, mime: "image/png" };
+  if (imageUrl.startsWith("http")) return { url: imageUrl, landingUrl, status, mime: "image/png", landingLinkPosition };
   const parsed = parseSupabaseUrl(imageUrl);
-  if (!parsed) return { url: null, landingUrl, status };
+  if (!parsed) return { url: null, landingUrl, status, landingLinkPosition };
   const { data: signed, error: signErr } = await supabase.storage.from(parsed.bucket).createSignedUrl(parsed.path, 3600);
   if (signErr) throw signErr;
-  return { url: signed?.signedUrl || null, landingUrl, status, mime: "image/png" };
+  return { url: signed?.signedUrl || null, landingUrl, status, mime: "image/png", landingLinkPosition };
 }

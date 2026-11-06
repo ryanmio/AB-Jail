@@ -3,6 +3,7 @@ import { getSupabaseServer } from "@/lib/supabase-server";
 import { internalHeaders } from "@/lib/internal-auth";
 import { env } from "@/lib/env";
 import { buildDedupeFields, findDuplicateCase } from "./dedupe";
+import { findLinks, hasDonateIntent, htmlLinks, isHeaderFooterPage, zoneLookup, type LinkZone } from "./link-zones";
 
 export type IngestTextParams = {
   text: string; // Cleaned text for AI/heuristics
@@ -27,6 +28,7 @@ export type IngestResult = {
   isFundraising?: boolean;
   heuristic?: { score: number; hits: string[] };
   landingUrl?: string | null;
+  landingLinkPosition?: LinkZone | null;
 };
 
 function computeHeuristic(text: string): { isFundraising: boolean; score: number; hits: string[] } {
@@ -103,41 +105,16 @@ function shouldSkipUrl(url: string): { skip: boolean; reason?: string } {
   return { skip: false };
 }
 
-// Normalize URL to base (origin + normalized path)
-// Special handling for /go/<id> patterns
-function normalizeToBase(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const origin = parsed.origin;
-    const path = parsed.pathname;
-    
-    // Special case: /go/<id> or similar tracking patterns
-    const goMatch = path.match(/^(\/go\/[^\/]+)/i);
-    if (goMatch) {
-      return origin + goMatch[1];
-    }
-    
-    // Otherwise: origin + full pathname (normalized)
-    const normalized = path
-      .replace(/\/+/g, "/") // collapse multiple slashes
-      .replace(/\/$/, "");   // remove trailing slash
-    
-    return origin + (normalized || "/");
-  } catch {
-    return null;
-  }
-}
-
-// Follow redirects to resolve tracking URLs (async helper)
-// Returns { finalUrl, hops, status } where hops = array of domain transitions
 // Generic browser UA for link resolution.
 const LINK_FOLLOW_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
-async function followRedirect(
-  url: string, 
-  maxHops = 5
-): Promise<{ finalUrl: string | null; hops: string[]; status: string }> {
+// Follow redirects to resolve tracking URLs (async helper)
+// Returns { finalUrl, hops, status } where hops = array of domain transitions
+export type FollowResult = { finalUrl: string | null; hops: string[]; status: "success" | "error" | "max_hops"; finalStatus?: number };
+export type LinkFollower = (url: string, maxHops?: number) => Promise<FollowResult>;
+
+async function followRedirect(url: string, maxHops = 5): Promise<FollowResult> {
   let current = url;
   const hops: string[] = [];
   
@@ -171,7 +148,7 @@ async function followRedirect(
       if (!location) {
         // No redirect header - this is the final destination
         hops.push(`final(${res.status})`);
-        return { finalUrl: current, hops, status: "success" };
+        return { finalUrl: current, hops, status: "success", finalStatus: res.status };
       }
       
       const next = new URL(location, current).href;
@@ -189,226 +166,153 @@ async function followRedirect(
   return { finalUrl: current, hops, status: "max_hops" };
 }
 
-/**
- * Extract ActBlue landing URL from combined text + HTML links
- * New algorithm:
- * 1. Extract all URLs from text (plain + HTML hrefs)
- * 2. Normalize to base (origin + first path segments, special handling for /go/<id>)
- * 3. Count frequency of each base (pure frequency, no weighting)
- * 4. Try top 5 bases by frequency, follow redirects until ActBlue found
- * 5. Fall back to direct ActBlue links if no CTA bases resolve
- */
-async function extractActBlueUrl(
-  text: string, 
-  submissionId?: string
-): Promise<string | null> {
-  const logPrefix = submissionId ? `extractActBlueUrl:${submissionId}` : "extractActBlueUrl";
-  
-  // Step 1: Extract all URLs from text
-  const urlPattern = /https?:\/\/[^\s<>"'\)]+/g;
-  const rawMatches = text.match(urlPattern) || [];
-  
-  // Clean trailing punctuation
-  const allUrls = rawMatches
-    .map(url => url.replace(/[.,;:)\]]+$/, ""))
-    .filter(url => url.length > 0);
-  
-  console.log(`${logPrefix}:extractCandidates`, {
-    totalUrls: allUrls.length,
-    sampleUrls: allUrls.slice(0, 5)
-  });
-  
-  if (allUrls.length === 0) {
-    return null;
+// Log hosts only, never full link addresses.
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "invalid";
   }
-  
-  // Step 2: Categorize URLs and normalize to bases
-  const directActBlueUrls: string[] = [];
-  const nonActBlueUrls: string[] = [];
-  const skippedUrls: Array<{ url: string; reason: string }> = [];
-  
-  for (const url of allUrls) {
-    // Check blacklist
-    const skipCheck = shouldSkipUrl(url);
-    if (skipCheck.skip) {
-      skippedUrls.push({ url, reason: skipCheck.reason || "unknown" });
-      continue;
+}
+
+const isActBlueHost = (host: string) => host === "actblue.com" || host.endsWith(".actblue.com");
+
+// Final pages that mean the fetch was blocked rather than answered.
+const BLOCKED_HOSTS = ["google.com"];
+const isBlockedResult = (r: FollowResult) => {
+  if (r.status !== "success" || !r.finalUrl) return true;
+  if (r.finalStatus === 403 || r.finalStatus === 429) return true;
+  const host = hostOf(r.finalUrl);
+  return BLOCKED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+};
+
+export type LinkCandidate = { url: string; intent: boolean; zone: LinkZone; order: number };
+
+// Every link in a message, ranked by donate intent, then body before header/footer, then document order.
+export function rankLinkCandidates(input: { text: string; html?: string | null; messageType: string }): LinkCandidate[] {
+  const byUrl = new Map<string, LinkCandidate>();
+  const add = (url: string, intent: boolean, zone: LinkZone) => {
+    const existing = byUrl.get(url);
+    if (existing) {
+      existing.intent = existing.intent || intent;
+      return;
     }
-    
+    byUrl.set(url, { url, intent, zone, order: byUrl.size });
+  };
+  const isEmail = input.messageType === "email";
+  if (input.html) {
+    for (const link of htmlLinks(input.html)) add(link.href, hasDonateIntent(link.label), isEmail ? link.zone : "body");
+  }
+  const text = input.text || "";
+  const zoneOf = isEmail ? zoneLookup(text) : () => "body" as const;
+  for (const link of findLinks(text)) add(link.url, hasDonateIntent(link.label), zoneOf(link.index));
+
+  return Array.from(byUrl.values())
+    .filter((c) => !shouldSkipUrl(c.url).skip)
+    .sort((a, b) => {
+      if (a.intent !== b.intent) return a.intent ? -1 : 1;
+      if (a.zone !== b.zone) return a.zone === "body" ? -1 : 1;
+      return a.order - b.order;
+    });
+}
+
+export type ActBlueExtraction = {
+  landingUrl: string | null;
+  position: LinkZone | null;
+  // "none": links were followed, every fetch finished cleanly and none reached ActBlue.
+  // "unknown": no candidates, or at least one fetch failed, timed out or was blocked.
+  outcome: "actblue" | "none" | "unknown";
+  fetches: number;
+};
+
+const MAX_FETCHES = 5;
+
+/**
+ * Find the ActBlue landing page a donor would reach from this message.
+ * Links are ranked by donate intent, body position, then document order.
+ * Direct ActBlue links need no fetch; others are followed, up to MAX_FETCHES.
+ */
+export async function extractActBlueUrl(
+  input: { text: string; html?: string | null; messageType: string },
+  follow: LinkFollower = followRedirect,
+  submissionId?: string
+): Promise<ActBlueExtraction> {
+  const logPrefix = submissionId ? `extractActBlueUrl:${submissionId}` : "extractActBlueUrl";
+  const isEmail = input.messageType === "email";
+  const candidates = rankLinkCandidates(input);
+
+  console.log(`${logPrefix}:candidates`, {
+    total: candidates.length,
+    hosts: Array.from(new Set(candidates.map((c) => hostOf(c.url)))).slice(0, 10),
+    withIntent: candidates.filter((c) => c.intent).length,
+    inBody: candidates.filter((c) => c.zone === "body").length,
+  });
+
+  let headerFooterHit: string | null = null;
+  const actBlueBase = (url: string, zone: LinkZone): { base: string; zone: LinkZone } | null => {
     try {
       const parsed = new URL(url);
-      const host = parsed.hostname.toLowerCase();
+      if (!isActBlueHost(parsed.hostname.toLowerCase())) return null;
+      const base = `${parsed.origin}${parsed.pathname}`;
+      // A page named as a header/footer button counts as one wherever its link sits (email only).
+      return { base, zone: isEmail && isHeaderFooterPage(parsed.pathname) ? "header_footer" : zone };
+    } catch {
+      return null;
+    }
+  };
+  const done = (landingUrl: string, position: LinkZone, fetches: number, via: string): ActBlueExtraction => {
+    console.log(`${logPrefix}:selectionOutcome`, { outcome: "actblue", via, position, fetches });
+    return { landingUrl, position, outcome: "actblue", fetches };
+  };
 
-      // Direct ActBlue domain
-      if (host === "actblue.com" || host.endsWith(".actblue.com")) {
-        directActBlueUrls.push(url);
-      } else {
-        nonActBlueUrls.push(url);
-      }
-    } catch {
-      skippedUrls.push({ url, reason: "invalid_url" });
+  // Direct ActBlue links first: no fetch needed.
+  const toFollow: LinkCandidate[] = [];
+  for (const c of candidates) {
+    const hit = actBlueBase(c.url, c.zone);
+    if (!hit) {
+      toFollow.push(c);
+      continue;
     }
+    if (hit.zone === "body") return done(hit.base, "body", 0, "direct");
+    headerFooterHit = headerFooterHit ?? hit.base;
   }
-  
-  console.log(`${logPrefix}:categorized`, {
-    directActBlue: directActBlueUrls.length,
-    nonActBlue: nonActBlueUrls.length,
-    skipped: skippedUrls.length,
-    skippedReasons: skippedUrls.slice(0, 3)
-  });
-  
-  // Step 3: Build frequency map of bases (non-ActBlue URLs = potential CTA tracking links)
-  const baseFrequency = new Map<string, { count: number; sampleUrls: string[] }>();
-  
-  for (const url of nonActBlueUrls) {
-    const base = normalizeToBase(url);
-    if (!base) continue;
-    
-    const existing = baseFrequency.get(base);
-    if (existing) {
-      existing.count++;
-      if (existing.sampleUrls.length < 3) {
-        existing.sampleUrls.push(url);
-      }
-    } else {
-      baseFrequency.set(base, { count: 1, sampleUrls: [url] });
-    }
-  }
-  
-  // Sort bases by frequency (descending), then by path length (longer = more specific)
-  const sortedBases = Array.from(baseFrequency.entries())
-    .map(([base, stats]) => ({
-      base,
-      count: stats.count,
-      sampleUrl: stats.sampleUrls[0],
-      sampleUrls: stats.sampleUrls,
-      pathLength: base.split("/").length
-    }))
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return b.pathLength - a.pathLength;
+
+  let fetches = 0;
+  let allClean = true;
+  for (const c of toFollow) {
+    if (fetches >= MAX_FETCHES) break;
+    // Once a header/footer link reached ActBlue, only body links can do better.
+    if (headerFooterHit && c.zone !== "body") continue;
+    fetches++;
+    const result = await follow(c.url, 5);
+    console.log(`${logPrefix}:follow`, {
+      host: hostOf(c.url),
+      intent: c.intent,
+      zone: c.zone,
+      hops: result.hops,
+      status: result.status,
+      finalHost: result.finalUrl ? hostOf(result.finalUrl) : null,
     });
-  
-  console.log(`${logPrefix}:baseCounts`, {
-    totalBases: sortedBases.length,
-    top10: sortedBases.slice(0, 10).map(b => ({
-      base: b.base,
-      count: b.count,
-      sampleUrl: b.sampleUrl
-    }))
-  });
-  
-  // Step 4: Try top 5 bases by frequency, follow redirects
-  const TOP_N_BASES = 5;
-  const MAX_URLS_PER_BASE = 3; // Try up to 3 concrete URLs per base
-  const topBases = sortedBases.slice(0, TOP_N_BASES);
-  
-  if (topBases.length > 0) {
-    console.log(`${logPrefix}:pickingOrder`, {
-      bases: topBases.map(b => b.base)
-    });
-  }
-  
-  for (const baseInfo of topBases) {
-    const urlsToTry = baseInfo.sampleUrls.slice(0, MAX_URLS_PER_BASE);
-    
-    console.log(`${logPrefix}:redirectAttempt`, {
-      base: baseInfo.base,
-      count: baseInfo.count,
-      urlsToTry: urlsToTry.length
-    });
-    
-    for (const url of urlsToTry) {
-      const redirectResult = await followRedirect(url, 5);
-      
-      console.log(`${logPrefix}:redirectAttempt:result`, {
-        base: baseInfo.base,
-        url: url.slice(0, 100),
-        hops: redirectResult.hops,
-        status: redirectResult.status,
-        finalUrl: redirectResult.finalUrl?.slice(0, 100)
-      });
-      
-      // Check if final URL is ActBlue
-      if (redirectResult.finalUrl) {
-        try {
-          const finalParsed = new URL(redirectResult.finalUrl);
-          const finalHost = finalParsed.hostname.toLowerCase();
-          
-          if (finalHost === "actblue.com" || finalHost.endsWith(".actblue.com")) {
-            // Success! This base resolves to ActBlue
-            const actblueBase = `${finalParsed.origin}${finalParsed.pathname}`;
-            
-            console.log(`${logPrefix}:selectionOutcome`, {
-              outcome: "success",
-              selectedBase: actblueBase,
-              sourceBase: baseInfo.base,
-              sourceBaseCount: baseInfo.count,
-              hops: redirectResult.hops
-            });
-            
-            return actblueBase;
-          }
-        } catch {
-          // Invalid final URL, continue
-        }
-      }
+    const hit = result.finalUrl ? actBlueBase(result.finalUrl, c.zone) : null;
+    if (hit) {
+      if (hit.zone === "body") return done(hit.base, "body", fetches, "redirect");
+      headerFooterHit = headerFooterHit ?? hit.base;
+      continue;
     }
-    
-    // No URLs from this base resolved to ActBlue, try next base
-    console.log(`${logPrefix}:redirectAttempt:base_failed`, {
-      base: baseInfo.base,
-      reason: "no_actblue_resolution"
-    });
+    if (isBlockedResult(result)) allClean = false;
   }
-  
-  // Step 5: No CTA bases resolved to ActBlue, fall back to direct ActBlue links
-  if (directActBlueUrls.length > 0) {
-    // Count frequency of direct ActBlue bases
-    const directBaseFrequency = new Map<string, number>();
-    
-    for (const url of directActBlueUrls) {
-      try {
-        const parsed = new URL(url);
-        const base = `${parsed.origin}${parsed.pathname}`;
-        directBaseFrequency.set(base, (directBaseFrequency.get(base) || 0) + 1);
-    } catch {
-        // Invalid URL, skip
-      }
-    }
-    
-    // Pick most common direct ActBlue base
-    const sortedDirectBases = Array.from(directBaseFrequency.entries())
-      .sort((a, b) => b[1] - a[1]);
-    
-    if (sortedDirectBases.length > 0) {
-      const [base, count] = sortedDirectBases[0];
-      
-      console.log(`${logPrefix}:selectionOutcome`, {
-        outcome: "fallback_to_direct",
-        selectedBase: base,
-        directActBlueCount: count,
-        reason: "no_cta_bases_resolved"
-      });
-      
-      return base;
-    }
-  }
-  
-  // No ActBlue URLs found at all
-  console.log(`${logPrefix}:selectionOutcome`, {
-    outcome: "none_found",
-    reason: "no_actblue_urls_after_all_attempts"
-  });
-  
-  return null;
+
+  if (headerFooterHit) return done(headerFooterHit, "header_footer", fetches, "header_footer");
+
+  const outcome = fetches > 0 && allClean ? "none" : "unknown";
+  console.log(`${logPrefix}:selectionOutcome`, { outcome, fetches, candidates: candidates.length });
+  return { landingUrl: null, position: null, outcome, fetches };
 }
 
 export async function ingestTextSubmission(params: IngestTextParams): Promise<IngestResult> {
   const supabase = getSupabaseServer();
   const imageUrl = params.imageUrlPlaceholder || "sms://no-image";
   const heur = computeHeuristic(params.text || "");
-  const isFundraising = heur.isFundraising;
 
   // Use raw text for duplicate detection if provided, otherwise use cleaned text
   const textForDedupe = params.rawText || params.text;
@@ -424,6 +328,19 @@ export async function ingestTextSubmission(params: IngestTextParams): Promise<In
     console.warn("ingestTextSubmission:dedupe_failed", String(e));
   }
 
+  // Find the ActBlue landing page from text and email HTML (tracking links are often only in HTML).
+  // Use the original HTML when available; the sanitized copy has tracking links removed.
+  const link = await extractActBlueUrl({
+    text: textForDedupe || "",
+    html: params.emailBodyOriginal || params.emailBody,
+    messageType: params.messageType,
+  });
+  const landingUrl = link.landingUrl;
+
+  // An ActBlue landing page makes the message public. Links that all resolve
+  // cleanly elsewhere hide it. Otherwise the keyword heuristic decides.
+  const isFundraising = landingUrl ? true : link.outcome === "none" ? false : heur.isFundraising;
+
   const insertRow: Record<string, any> = {
     image_url: imageUrl,
     message_type: params.messageType,
@@ -434,6 +351,10 @@ export async function ingestTextSubmission(params: IngestTextParams): Promise<In
     is_fundraising: isFundraising,
     public: isFundraising, // hide non-fundraising by default
   };
+  if (landingUrl) {
+    insertRow.landing_url = landingUrl;
+    insertRow.landing_link_position = link.position;
+  }
 
   // Add email-specific fields
   if (params.emailSubject) {
@@ -461,35 +382,6 @@ export async function ingestTextSubmission(params: IngestTextParams): Promise<In
     insertRow.email_sent_at = params.emailSentAt.toISOString();
   }
 
-  // Extract ActBlue landing URL from text AND email HTML (tracking links often only in HTML)
-  // Use ORIGINAL unsanitized HTML for URL extraction (sanitized HTML has tracking links removed)
-  let textWithHtmlLinks = textForDedupe || "";
-  const htmlForExtraction = params.emailBodyOriginal || params.emailBody; // Prefer original, fallback to sanitized
-  
-  let hrefUrlsCount = 0;
-  if (htmlForExtraction) {
-    // Extract href URLs from HTML using regex
-    const hrefPattern = /href=["']([^"']+)["']/gi;
-    const hrefMatches = htmlForExtraction.matchAll(hrefPattern);
-    const hrefUrls = Array.from(hrefMatches, m => m[1]);
-    hrefUrlsCount = hrefUrls.length;
-    textWithHtmlLinks = textWithHtmlLinks + " " + hrefUrls.join(" ");
-  }
-  
-  console.log("ingestTextSubmission:url_extraction_sources", {
-    textLength: (textForDedupe || "").length,
-    htmlLength: htmlForExtraction ? htmlForExtraction.length : 0,
-    hrefUrlsExtracted: hrefUrlsCount,
-    hasOriginalHtml: !!params.emailBodyOriginal
-  });
-  
-  // Note: We'll get a submission ID after insert, but we can pass null for now
-  // The extraction function will use a generic log prefix
-  const landingUrl = await extractActBlueUrl(textWithHtmlLinks);
-  if (landingUrl) {
-    insertRow.landing_url = landingUrl;
-  }
-
   try {
     const fields = buildDedupeFields(textForDedupe || "");
     insertRow.normalized_text = fields.normalized_text;
@@ -510,8 +402,8 @@ export async function ingestTextSubmission(params: IngestTextParams): Promise<In
     return { ok: false, error: error.message };
   }
   const id = (data as any)?.id as string | undefined;
-  console.log("ingestTextSubmission:inserted", { id: id || null, isFundraising, score: heur.score, hits: heur.hits, landingUrl: landingUrl || null });
-  return { ok: true, id, isFundraising, heuristic: heur, landingUrl: landingUrl || null };
+  console.log("ingestTextSubmission:inserted", { id: id || null, isFundraising, score: heur.score, hits: heur.hits, linkOutcome: link.outcome, fetches: link.fetches, position: link.position });
+  return { ok: true, id, isFundraising, heuristic: heur, landingUrl: landingUrl || null, landingLinkPosition: link.position };
 }
 
 export async function triggerPipelines(submissionId: string) {

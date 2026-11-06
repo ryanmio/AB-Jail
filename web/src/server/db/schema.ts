@@ -34,6 +34,7 @@ export const submissions = pgTable(
     emailFrom: text("email_from"),
     isPublic: boolean("public").default(true),
     landingUrl: text("landing_url"),
+    landingLinkPosition: text("landing_link_position"), // body | header_footer
     landingScreenshotUrl: text("landing_screenshot_url"),
     landingRenderedAt: timestamp("landing_rendered_at", { withTimezone: true }),
     landingRenderStatus: text("landing_render_status"),

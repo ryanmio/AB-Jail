@@ -7,7 +7,7 @@ import { LiveViolations, LiveSender, LiveSummary, RequestDeletionButton, Comment
 import LocalTime from "@/components/LocalTime";
 import Footer from "@/components/Footer";
 import { getSupabaseServer } from "@/lib/supabase-server";
-import { getCaseDetail, getCaseImageUrl, getCaseLandingUrl } from "@/server/cases/detail";
+import { getCaseDetail, getCaseImageUrl, getCaseLandingUrl, type CaseLandingUrl } from "@/server/cases/detail";
 import { isBotSubmitted } from "@/lib/badge-helpers";
 type CaseItem = {
   id: string;
@@ -172,7 +172,7 @@ export default async function CaseDetailPage({
   const [detail, imgData, landData] = await Promise.all([
     getCaseDetail(id).catch(() => null),
     getCaseImageUrl(id).catch(() => ({ url: null } as { url: string | null; mime?: string | null })),
-    getCaseLandingUrl(id).catch(() => ({ url: null, landingUrl: null, status: null } as { url: string | null; landingUrl: string | null; status: string | null })),
+    getCaseLandingUrl(id).catch(() => ({ url: null, landingUrl: null, status: null } as CaseLandingUrl)),
   ]);
   const data = detail as unknown as CaseData | null;
   if (!data?.item) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
@@ -347,7 +347,7 @@ export default async function CaseDetailPage({
 
         {/* Reporting */}
         {!hasReport && (
-          <ReportingCard id={id} existingLandingUrl={landData?.landingUrl || null} processingStatus={item.processing_status ?? null} />
+          <ReportingCard id={id} existingLandingUrl={landData?.landingUrl || null} processingStatus={item.processing_status ?? null} landingLinkPosition={landData?.landingLinkPosition ?? null} />
         )}
 
         {/* Report history and replies */}

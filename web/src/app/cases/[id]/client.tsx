@@ -1007,9 +1007,10 @@ export function CommentsSection({ id, initialComments }: CommentsSectionProps) {
   );
 }
 
-type ReportCardProps = { id: string; existingLandingUrl?: string | null; processingStatus?: string | null };
-export function ReportingCard({ id, existingLandingUrl = null, processingStatus = null }: ReportCardProps) {
+type ReportCardProps = { id: string; existingLandingUrl?: string | null; processingStatus?: string | null; landingLinkPosition?: string | null };
+export function ReportingCard({ id, existingLandingUrl = null, processingStatus = null, landingLinkPosition = null }: ReportCardProps) {
   const [landingUrl, setLandingUrl] = useState(existingLandingUrl || "");
+  const [linkPosition, setLinkPosition] = useState<string | null>(landingLinkPosition);
   const [ccEmail, setCcEmail] = useState("");
   const [note, setNote] = useState("");
   const [violationsOverride, setViolationsOverride] = useState("");
@@ -1035,9 +1036,10 @@ export function ReportingCard({ id, existingLandingUrl = null, processingStatus 
     const interval = setInterval(async () => {
       try {
         const data = await fetchCaseSnapshot<Record<string, unknown>>(id);
-        const item = data.item as { processing_status?: string | null; landing_url?: string | null } | null;
+        const item = data.item as { processing_status?: string | null; landing_url?: string | null; landing_link_position?: string | null } | null;
         if (!cancelled && item?.processing_status) {
           setStatus(item.processing_status);
+          if (item.landing_link_position) setLinkPosition(item.landing_link_position);
           // Update landing URL if we got one and our field is empty
           if (item.landing_url) {
             setLandingUrl((prev) => {
@@ -1346,6 +1348,11 @@ export function ReportingCard({ id, existingLandingUrl = null, processingStatus 
 
         
 
+        {linkPosition === "header_footer" && (
+          <div className="md:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
+            <span className="font-medium">Heads up:</span> the ActBlue link in this message is only in its header or footer; the main link goes elsewhere. You can still send the report, and it will say so.
+          </div>
+        )}
         {error && <div className="text-sm text-red-600 md:col-span-2">{error}</div>}
         {info && <div className="text-sm text-green-700 md:col-span-2">{info}</div>}
 

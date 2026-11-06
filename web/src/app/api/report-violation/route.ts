@@ -39,18 +39,21 @@ export async function POST(req: NextRequest) {
   // Fetch case
   const { data: rows, error: err } = await supabase
     .from("submissions")
-    .select("id, sender_name, sender_id, raw_text, email_subject, email_body, ai_summary, image_url, landing_url, landing_screenshot_url, message_type, created_at, email_sent_at")
+    .select("id, sender_name, sender_id, raw_text, email_subject, email_body, ai_summary, image_url, landing_url, landing_link_position, landing_screenshot_url, message_type, created_at, email_sent_at")
     .eq("id", caseId)
     .limit(1);
   if (err) return NextResponse.json({ error: "case_load_failed" }, { status: 500 });
   const sub = rows?.[0] as
-    | { id: string; sender_name?: string | null; sender_id?: string | null; raw_text?: string | null; email_body?: string | null; landing_url?: string | null; landing_screenshot_url?: string | null; image_url?: string | null; message_type?: string | null; created_at?: string | null; email_sent_at?: string | null }
+    | { id: string; sender_name?: string | null; sender_id?: string | null; raw_text?: string | null; email_body?: string | null; landing_url?: string | null; landing_link_position?: string | null; landing_screenshot_url?: string | null; image_url?: string | null; message_type?: string | null; created_at?: string | null; email_sent_at?: string | null }
     | undefined;
   if (!sub) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const landingUrlRaw = sub.landing_url || landingUrlFromUser;
   const landingUrl = landingUrlRaw ? (() => { try { const u = new URL(landingUrlRaw); return `${u.origin}${u.pathname}`; } catch { return landingUrlRaw; } })() : null;
   if (!landingUrl) return NextResponse.json({ error: "landing_url_required" }, { status: 400 });
+  const landingNote = sub.landing_link_position === "header_footer"
+    ? "Note: the ActBlue link appears in this message's header/footer, not its main body."
+    : null;
 
   // Build subject/body
   const shortId = sub.id.split("-")[0];
@@ -137,7 +140,7 @@ export async function POST(req: NextRequest) {
     }
   }
   sections.push(`Violations\n----------\n${vioText}`);
-  sections.push(`Landing page URL\n-----------------\n${landingUrl}`);
+  sections.push(`Landing page URL\n-----------------\n${landingUrl}${landingNote ? `\n${landingNote}` : ""}`);
   if (reporterNote) sections.push(`Reporter note\n-------------\n${reporterNote}`);
   if (evidenceUrl) sections.push(`${evidenceLabel}\n---------\n${evidenceUrl}`);
   sections.push(`Meta\n----\nThis report was submitted using AB Jail.\nCase UUID: ${sub.id}\nCase short_id: ${shortId}`);
@@ -212,6 +215,7 @@ export async function POST(req: NextRequest) {
       <div style="margin-bottom:20px">
         <h2 style="margin:0 0 8px 0;font-size:14px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Landing Page</h2>
         <p style="margin:0;font-size:14px"><a href="${esc(landingUrl)}" style="color:#3b82f6;text-decoration:underline" target="_blank" rel="noopener noreferrer">${esc(landingUrl)}</a></p>
+        ${landingNote ? `<p style="margin:6px 0 0 0;font-size:13px;color:#b45309">${esc(landingNote)}</p>` : ""}
       </div>
 
       ${reporterNote ? `
