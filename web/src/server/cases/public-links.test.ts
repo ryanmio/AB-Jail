@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { landingUrlBase, isPlainLink, publicMessageText } from "./public-links.ts";
+import { landingUrlBase, publicMessageText } from "./public-links.ts";
 
 describe("landingUrlBase", () => {
   it("keeps scheme, host and path only", () => {
@@ -12,7 +12,13 @@ describe("landingUrlBase", () => {
     assert.equal(landingUrlBase("https://secure.actblue.com/donate/page"), "https://secure.actblue.com/donate/page");
   });
 
-  it("returns null for empty or unparseable values", () => {
+  it("drops parameters written into the path", () => {
+    assert.equal(landingUrlBase("https://secure.actblue.com/donate/page;refcode=a"), "https://secure.actblue.com/donate/page");
+    assert.equal(landingUrlBase("https://secure.actblue.com/donate/page&refcode=a"), "https://secure.actblue.com/donate/page");
+  });
+
+  it("returns null for other hosts, empty or unparseable values", () => {
+    assert.equal(landingUrlBase("https://p-af.org/b66/OGahJX?x=1"), null);
     assert.equal(landingUrlBase(null), null);
     assert.equal(landingUrlBase(undefined), null);
     assert.equal(landingUrlBase(""), null);
@@ -21,52 +27,48 @@ describe("landingUrlBase", () => {
   });
 });
 
-describe("isPlainLink", () => {
-  const plain = [
+describe("publicMessageText", () => {
+  const kept = [
     "secure.actblue.com/donate/dcrowley-email",
     "https://secure.actblue.com/donate/dcrowley-email",
     "secure.actblue.com/donate/ms_2024_q4",
     "https://abjail.org/api/cases/0653c5f0-f00d-466f-a905-070019ec310e/email-html",
   ];
-  for (const link of plain) {
+  for (const link of kept) {
     it(`shows ${link} as written`, () => {
-      assert.equal(isPlainLink(link), true);
+      assert.equal(publicMessageText(`Go ${link} now`), `Go ${link} now`);
     });
   }
 
-  const placeholder = [
+  const replaced = [
     "secure.actblue.com/donate/page?refcode=abc",
+    "secure.actblue.com/donate/page&refcode=abc",
+    "secure.actblue.com/donate/page;refcode=abc",
+    "secure.actblue.com/donate/page%3Frefcode%3Dabc",
     "https://secure.actblue.com/donate/page#top",
     "https://abjail.org/cases/abc?x=1",
     "rs-act.com/l/OGahJX",
+    "rs-act.com?t=abc",
+    "www.rs-act.com?t=abc",
     "bit.ly/4jYRCR9",
     "abigailspanberger.us/respectfully?t=EXWIxw",
     "turnoutpac.org/postcards",
     "dlcc.org/privacy-policy/",
     "flds.us/1124-2",
     "https://example.com",
+    "ttps://rs-act.com/l/OGahJX",
+    "http:/rs-act.com/l/OGahJX",
+    "//rs-act.com/l/OGahJX",
   ];
-  for (const link of placeholder) {
-    it(`shows a placeholder for ${link}`, () => {
-      assert.equal(isPlainLink(link), false);
+  for (const link of replaced) {
+    it(`replaces ${link}`, () => {
+      assert.equal(publicMessageText(`Go ${link} now`), "Go [LINK] now");
     });
   }
-});
 
-describe("publicMessageText", () => {
-  it("replaces links and keeps the rest of the text", () => {
-    const text = "Chip in now: rs-act.com/l/OGahJX. Reply STOP to opt out.";
-    assert.equal(publicMessageText(text), "Chip in now: [LINK]. Reply STOP to opt out.");
-  });
-
-  it("keeps ActBlue page links and replaces ActBlue links with parameters", () => {
-    const text = "Donate https://secure.actblue.com/donate/page?refcode=x or secure.actblue.com/donate/dcrowley-email";
-    assert.equal(publicMessageText(text), "Donate [LINK] or secure.actblue.com/donate/dcrowley-email");
-  });
-
-  it("replaces other links even when readable", () => {
-    const text = "See turnoutpac.org/postcards and https://dlcc.org/privacy-policy/ today";
-    assert.equal(publicMessageText(text), "See [LINK] and [LINK] today");
+  it("replaces links right after other characters", () => {
+    assert.equal(publicMessageText("--rs-act.com/l/OGahJX x=rs-act.com/l/x"), "--[LINK] x=[LINK]");
+    assert.equal(publicMessageText("mailto:list@sp.actionkit.com?subject=unsubscribe%3Aabc"), "mailto:list@[LINK]");
   });
 
   it("handles links inside an href attribute and as anchor text", () => {
@@ -78,17 +80,12 @@ describe("publicMessageText", () => {
   });
 
   it("preserves trailing punctuation", () => {
-    const text = "A: bit.ly/4jYRCR9, B: p-af.org/b66?t=EfYDhh; C (flds.us/1124-2). Seen turnoutpac.org/postcards?";
-    assert.equal(publicMessageText(text), "A: [LINK], B: [LINK]; C ([LINK]). Seen [LINK]?");
+    const text = "A: bit.ly/4jYRCR9, B: p-af.org/b66?t=EfYDhh; C (flds.us/1124-2). D secure.actblue.com/donate/x&recurring=true]";
+    assert.equal(publicMessageText(text), "A: [LINK], B: [LINK]; C ([LINK]). D [LINK]]");
   });
 
-  it("handles a link with parameters whose scheme is damaged", () => {
-    const text = "Give: ttps://secure.actblue.com/donate/page/?refcode=abc now";
-    assert.equal(publicMessageText(text), "Give: ttps://[LINK] now");
-  });
-
-  it("leaves ordinary text alone", () => {
-    const text = "Give $25/month before 5/10 at 10:30pm. Email info@example.com. Rated 4.5/5 by U.S./Canada readers.";
+  it("leaves ordinary text and plain domain names alone", () => {
+    const text = "Give $25/month before 5/10 at 10:30pm. Email info@example.com or visit ActBlue.com. Rated 4.5/5 by U.S./Canada readers.";
     assert.equal(publicMessageText(text), text);
   });
 

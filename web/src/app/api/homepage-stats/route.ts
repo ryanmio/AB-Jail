@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
         if (entry?.report && typeof entry.report === "object") {
           delete entry.report.cc_email;
           if ("landing_url" in entry.report) entry.report.landing_url = landingUrlBase(entry.report.landing_url);
+          if ("body" in entry.report) entry.report.body = publicMessageText(entry.report.body);
         }
         if (entry?.case && typeof entry.case === "object" && "raw_text" in entry.case) {
           entry.case.raw_text = publicMessageText(entry.case.raw_text);

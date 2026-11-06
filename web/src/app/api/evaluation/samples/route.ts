@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 
 /**
  * Check if URL is an image file (not PDF or other formats)
@@ -130,11 +131,11 @@ export async function GET(req: NextRequest) {
         imageUrl: await convertToSignedUrl(supabase, sub.image_url),
         senderId: sub.sender_id,
         senderName: sub.sender_name,
-        rawText: sub.raw_text,
+        rawText: publicMessageText(sub.raw_text),
         messageType: sub.message_type,
         aiConfidence: sub.ai_confidence,
         createdAt: sub.created_at,
-        landingUrl: sub.landing_url,
+        landingUrl: landingUrlBase(sub.landing_url),
         landingScreenshotUrl: await convertToSignedUrl(supabase, sub.landing_screenshot_url),
         emailBody: sub.email_body || null,
         emailSubject: sub.email_subject || null,
