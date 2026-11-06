@@ -2,6 +2,7 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { env } from "@/lib/env";
 import { truncateForAI } from "./constants";
+import { cleanSenderName } from "./sender-name";
 
 export type SenderType = "org" | "pac" | "candidate" | "unknown";
 
@@ -109,7 +110,7 @@ export async function runSenderExtraction(submissionId: string) {
     return { ok: false as const, status: 500, error: "openai_failed" as const };
   }
 
-  const senderName = parsedOut.sender_name && parsedOut.sender_name.trim().length > 0 ? parsedOut.sender_name.trim() : null;
+  const senderName = cleanSenderName(parsedOut.sender_name);
   try {
     await supabase
       .from("submissions")

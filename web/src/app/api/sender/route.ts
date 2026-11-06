@@ -3,6 +3,7 @@ import { requireInternalSecret } from "@/lib/internal-auth";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { truncateForAI } from "@/server/ai/constants";
 import { alertPipelineFailure } from "@/lib/pipeline-alert";
+import { cleanSenderName } from "@/server/ai/sender-name";
 
 export async function POST(req: NextRequest) {
   const denied = requireInternalSecret(req);
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "openai_failed" }, { status: 500 });
   }
 
-  const senderName = parsedOut.sender_name && parsedOut.sender_name.trim().length > 0 ? parsedOut.sender_name.trim() : null;
+  const senderName = cleanSenderName(parsedOut.sender_name);
 
   try {
     await supabase
