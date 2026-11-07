@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireInternalSecret } from "@/lib/internal-auth";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { detectPII } from "@/server/ai/redact-pii";
+import { redactStrings } from "@/server/ai/redact-text";
 
 /**
  * Redact PII from submission text fields.
@@ -52,7 +53,8 @@ export async function POST(req: NextRequest) {
     // Detect PII using AI
     const piiResult = await detectPII(
       submission.raw_text || "",
-      submission.email_from
+      submission.email_from,
+      submission.email_body
     );
 
     console.log("redact-pii:detected", {
@@ -79,32 +81,7 @@ export async function POST(req: NextRequest) {
     // Perform redaction on text fields - iterate over all strings to redact
     const updates: Record<string, string | null> = {};
 
-    // Helper function to redact all PII strings from text
-    // Also redacts punctuation-stripped versions (e.g., "Ryan," → also redact "Ryan")
-    const redactText = (text: string): string => {
-      let redacted = text;
-      const stringsToRedact = new Set<string>();
-      
-      // Collect all strings to redact, including punctuation-stripped versions
-      for (const piiString of piiResult.strings_to_redact) {
-        stringsToRedact.add(piiString);
-        
-        // Also add version without trailing punctuation
-        const withoutPunctuation = piiString.replace(/[.,;:!?]+$/, "");
-        if (withoutPunctuation !== piiString && withoutPunctuation.length > 0) {
-          stringsToRedact.add(withoutPunctuation);
-        }
-      }
-      
-      // Sort by length descending to redact longer strings first (avoid partial matches)
-      const sortedStrings = Array.from(stringsToRedact).sort((a, b) => b.length - a.length);
-      
-      for (const piiString of sortedStrings) {
-        const asterisks = "*".repeat(piiString.length);
-        redacted = redacted.split(piiString).join(asterisks);
-      }
-      return redacted;
-    };
+    const redactText = (text: string): string => redactStrings(text, piiResult.strings_to_redact);
 
     if (submission.raw_text) {
       updates.raw_text = redactText(submission.raw_text);

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { truncateForAI } from "./constants";
+import { visibleText } from "./redact-text";
 import { alertPipelineFailure } from "@/lib/pipeline-alert";
 
 export interface PIIDetectionResult {
@@ -13,7 +14,8 @@ export interface PIIDetectionResult {
  */
 export async function detectPII(
   rawText: string,
-  emailFrom?: string | null
+  emailFrom?: string | null,
+  emailHtml?: string | null
 ): Promise<PIIDetectionResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   
@@ -73,6 +75,11 @@ Be conservative with confidence. Only return high confidence (≥0.7) when you f
   }
   messageText += String(rawText || "").trim() || "(none)";
   messageText = truncateForAI(messageText);
+  // The page shows the HTML version, which can carry personalization the plain text lacks.
+  const htmlText = emailHtml ? visibleText(emailHtml) : "";
+  if (htmlText) {
+    messageText += `\n\n--- Same email, HTML version (visible text) ---\n\n${truncateForAI(htmlText)}`;
+  }
   
   const messages: Message[] = [
     { role: "system", content: system },
