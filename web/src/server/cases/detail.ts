@@ -1,6 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { landingUrlBase, publicMessageText } from "@/server/cases/public-links";
 import { publicEmailHtml, publicEmailSubject } from "@/server/cases/public-email-html";
+import { resolveCaseId as resolveShortCaseId, type ShortIdRow } from "@/server/cases/short-id";
 
 // Shared data layer for a single case. Used by both the /api/cases/[id]* route
 // handlers and the server-rendered /cases/[id] page, so the page can read
@@ -37,6 +38,21 @@ export const SENSITIVE_SUBMISSION_COLUMNS = [
 export function stripSensitiveSubmissionColumns<T extends Record<string, unknown>>(row: T): T {
   for (const key of SENSITIVE_SUBMISSION_COLUMNS) delete row[key];
   return row;
+}
+
+/** Full case UUID for a short or full ID; null when a short ID matches no case. */
+export async function resolveCaseId(id: string): Promise<string | null> {
+  return resolveShortCaseId(id, async (lo, hi) => {
+    const { data, error } = await getSupabaseServer()
+      .from("submissions")
+      .select("id, created_at")
+      .gte("id", lo)
+      .lte("id", hi)
+      .order("created_at", { ascending: true })
+      .limit(2);
+    if (error) throw error;
+    return (data ?? []) as ShortIdRow[];
+  });
 }
 
 export async function getCaseDetail(id: string): Promise<CaseDetail | null> {

@@ -652,6 +652,29 @@ function renderReportBody(body: string) {
   );
 }
 
+export function CopyCaseLink({ shortId, linkId }: { shortId: string; linkId: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/cases/${linkId}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy link to this case"
+      aria-label={`Copy link to case ${shortId}`}
+      className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-800 border border-slate-300 hover:bg-slate-200 cursor-pointer transition-colors"
+    >
+      <span className="font-mono">Case #{shortId}</span>
+      <span aria-live="polite" className="text-slate-500">{copied ? "Link copied" : "Copy link"}</span>
+    </button>
+  );
+}
+
 type RequestDeletionButtonProps = {
   id: string;
   disabled?: boolean;

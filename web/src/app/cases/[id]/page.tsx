@@ -3,11 +3,11 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 import type { Metadata } from "next";
 import { Breadcrumb } from "@/components/breadcrumb";
-import { LiveViolations, LiveSender, LiveSummary, RequestDeletionButton, CommentsSection, EvidenceTabs, ReportingCard, ReportThread, CaseVerdict } from "./client";
+import { LiveViolations, LiveSender, LiveSummary, RequestDeletionButton, CopyCaseLink, CommentsSection, EvidenceTabs, ReportingCard, ReportThread, CaseVerdict } from "./client";
 import LocalTime from "@/components/LocalTime";
 import Footer from "@/components/Footer";
 import { getSupabaseServer } from "@/lib/supabase-server";
-import { getCaseDetail, getCaseImageUrl, getCaseLandingUrl, type CaseLandingUrl } from "@/server/cases/detail";
+import { getCaseDetail, getCaseImageUrl, resolveCaseId, getCaseLandingUrl, type CaseLandingUrl } from "@/server/cases/detail";
 import { isBotSubmitted } from "@/lib/badge-helpers";
 type CaseItem = {
   id: string;
@@ -58,7 +58,8 @@ type CaseData = {
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = (await resolveCaseId(rawId).catch(() => null)) ?? rawId;
 
   try {
     // Query Supabase directly to avoid depending on internal API/host headers during metadata fetch
@@ -164,16 +165,23 @@ export default async function CaseDetailPage({
   params: Promise<{ id: string }>; 
   searchParams: Promise<{ warning?: string; pages?: string }> 
 }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
   const { warning, pages } = await searchParams;
+  // Short IDs ("Case #xxxxxxxx") load the same page as the full link.
+  const id = await resolveCaseId(rawId).catch(() => null);
+  if (!id) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
   // Read straight from the data layer. This page used to fetch its own
   // /api/cases/[id], /image-url and /landing-url routes over HTTP, which
   // cost three extra serverless invocations per render.
-  const [detail, imgData, landData] = await Promise.all([
+  const shortId = id.split("-")[0];
+  const [detail, imgData, landData, shortOwner] = await Promise.all([
     getCaseDetail(id).catch(() => null),
     getCaseImageUrl(id).catch(() => ({ url: null } as { url: string | null; mime?: string | null })),
     getCaseLandingUrl(id).catch(() => ({ url: null, landingUrl: null, status: null } as CaseLandingUrl)),
+    resolveCaseId(shortId).catch(() => null),
   ]);
+  // The short link is only offered when it leads back to this case.
+  const linkId = shortOwner === id ? shortId : id;
   const data = detail as unknown as CaseData | null;
   if (!data?.item) return <main className="mx-auto max-w-5xl p-6">Not found</main>;
 
@@ -272,6 +280,7 @@ export default async function CaseDetailPage({
                     hasForwarder: !!item?.forwarder_email,
                   }) ? 'Bot Captured' : 'User Submitted'}
                 </span>
+                <CopyCaseLink shortId={shortId} linkId={linkId} />
                 {hasReport && (
                   <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 border border-green-200">
                     Reported to ActBlue
